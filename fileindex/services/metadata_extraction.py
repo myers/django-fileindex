@@ -8,15 +8,15 @@ from thumbhash import image_to_thumbhash
 
 from fileindex.services import media_analysis
 
-# Type alias for metadata dictionary using Python 3.12+ syntax
-type FileMetadata = dict[str, Any]
+# Type alias for metadata dictionary (Python 3.11 compatible)
+FileMetadata = dict[str, Any]
 
 # Constants with Final annotation for better type checking
 THUMBHASH_MAX_SIZE: Final[tuple[int, int]] = (100, 100)
 SECONDS_TO_MS: Final[int] = 1000
 
 # Supported animated image formats
-type AnimatedImageFormat = Literal["image/gif", "image/webp", "image/avif"]
+AnimatedImageFormat = Literal["image/gif", "image/webp", "image/avif"]
 ANIMATED_IMAGE_FORMATS: Final[list[AnimatedImageFormat]] = [
     "image/gif",
     "image/webp",
