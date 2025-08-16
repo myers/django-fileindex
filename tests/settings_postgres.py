@@ -18,7 +18,7 @@ DATABASES = {
     }
 }
 
-# Enable pgq for PostgreSQL tests
+# Use standard apps for PostgreSQL tests
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -27,5 +27,4 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'fileindex.apps.FileindexAppConfig',
-    'pgq',
 ]

@@ -6,12 +6,10 @@ from typing import NotRequired, TypedDict
 import pillow_avif  # noqa
 from django.conf import settings
 from django.db import models
-from django.dispatch import Signal, receiver
+from django.dispatch import Signal
 from django.utils import timezone
 
 from fileindex import fileutils
-from fileindex.services.avif_generation import enqueue_creating_avif_from_gif
-from fileindex.services.video_thumbnail import enqueue_video_thumbnail
 
 logger = logging.getLogger(__name__)
 
@@ -336,19 +334,7 @@ class IndexedFile(models.Model):
         return None
 
 
-# Signal receivers for background processing
-@receiver(indexedfile_added, sender=IndexedFile)
-def enqueue_background_processing(sender, instance, **kwargs):
-    """Enqueue background processing tasks for IndexedFiles."""
-    indexed_file = instance
-
-    # Enqueue AVIF generation for GIFs
-    if indexed_file.mime_type == "image/gif":
-        enqueue_creating_avif_from_gif(indexed_file)
-
-    # Enqueue video thumbnail generation for videos
-    elif indexed_file.mime_type and indexed_file.mime_type.startswith("video/"):
-        enqueue_video_thumbnail(indexed_file)
+# Signal receivers removed - apps should implement their own handlers for indexedfile_added signal
 
 
 class FilePath(models.Model):

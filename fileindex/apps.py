@@ -5,5 +5,5 @@ class FileindexAppConfig(AppConfig):
     name = "fileindex"
 
     def ready(self):
-        # Import tasks to register them with the @task decorator
-        from fileindex import tasks  # noqa: F401
+        # Signal indexedfile_added is available for apps to use
+        pass
