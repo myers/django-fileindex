@@ -8,7 +8,7 @@ from thumbhash import image_to_thumbhash
 
 from fileindex.services import media_analysis
 
-# Type alias for metadata dictionary (Python 3.11 compatible)
+# Type alias for metadata dictionary using Python 3.11 compatible syntax
 FileMetadata = dict[str, Any]
 
 # Constants with Final annotation for better type checking

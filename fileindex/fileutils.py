@@ -1,6 +1,10 @@
-import hashlib, base64, subprocess, os, shutil, filecmp
-
+import base64
+import filecmp
+import hashlib
 import logging
+import shutil
+import subprocess
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -16,63 +20,65 @@ def read_in_chunks(file_object, chunk_size=1024):
 
 
 def analyze_file(filepath):
+    path = Path(filepath)
     results = hash_file(filepath)
     results["mime_type"] = get_mime_type(filepath)
-    results["size"] = os.path.getsize(filepath)
+    results["size"] = path.stat().st_size
     return results
 
 
 def hash_file(filepath):
-    f = open(filepath, "rb")
     sha1 = hashlib.sha1()
     sha512 = hashlib.sha512()
 
-    for piece in read_in_chunks(f):
-        sha1.update(piece)
-        sha512.update(piece)
+    with open(filepath, "rb") as f:
+        for piece in read_in_chunks(f):
+            sha1.update(piece)
+            sha512.update(piece)
     return {
-        "sha1": str(base64.b32encode(sha1.digest()), "ascii"),
-        "sha512": str(base64.b32encode(sha512.digest()), "ascii"),
+        "sha1": str(base64.b32encode(sha1.digest()), "ascii").rstrip("="),
+        "sha512": str(base64.b32encode(sha512.digest()), "ascii").rstrip("="),
     }
 
 
 def get_mime_type(filepath):
-    file_proc = subprocess.Popen(
-        ["/usr/bin/file", "--mime-type", "--brief", filepath], stdout=subprocess.PIPE
-    )
-    (
-        stdout,
-        stderr,
-    ) = file_proc.communicate()
-    if file_proc.returncode != 0:
-        raise Exception(
-            "'file' didn't work %r %r"
-            % (
-                stdout,
-                stderr,
-            )
+    try:
+        result = subprocess.run(
+            ["/usr/bin/file", "--mime-type", "--brief", filepath],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
-    return str(stdout, "ascii").strip()
+        if result.returncode != 0:
+            raise Exception(f"'file' didn't work {result.stdout!r} {result.stderr!r}")
+        return result.stdout.strip()
+    except subprocess.TimeoutExpired:
+        raise Exception(f"'file' command timed out for {filepath!r}") from None
 
 
 def on_same_filesystem(src, dst):
     logger.debug(f"on_same_filesystem({src!r}, {dst!r})")
 
-    src_st_dev = os.lstat(src).st_dev
-    if os.path.exists(dst):
-        dst_st_dev = os.lstat(dst).st_dev
+    src_path = Path(src)
+    dst_path = Path(dst)
+
+    src_st_dev = src_path.stat().st_dev
+    if dst_path.exists():
+        dst_st_dev = dst_path.stat().st_dev
     else:
-        dst_dir = os.path.dirname(dst)
-        while not os.path.exists(dst_dir):
-            logger.debug(f"{dst_dir!r} doesn't exists looking at parent")
-            dst_dir = os.path.dirname(dst_dir)
-        logger.debug(f"found {dst_dir}")
-        dst_st_dev = os.lstat(dst_dir).st_dev
+        dst_parent = dst_path.parent
+        while not dst_parent.exists():
+            logger.debug(f"{dst_parent!r} doesn't exists looking at parent")
+            dst_parent = dst_parent.parent
+        logger.debug(f"found {dst_parent}")
+        dst_st_dev = dst_parent.stat().st_dev
     return src_st_dev == dst_st_dev
 
 
 def smartadd(src, dst, only_hard_link=False):
-    if os.path.exists(dst) and os.path.samefile(src, dst):
+    src_path = Path(src)
+    dst_path = Path(dst)
+    if dst_path.exists() and src_path.samefile(dst_path):
         return True
 
     if on_same_filesystem(src, dst):
@@ -87,24 +93,25 @@ def smartadd(src, dst, only_hard_link=False):
 
 def smartcopy(src, dst):
     logger.debug(f"smartcopy({src!r}, {dst!r})")
-    assert os.path.exists(src)
-    if os.path.exists(dst):
-        assert same_contents(
-            src, dst
-        ), f"These two files should be the same, but are not {src!r} vs {dst!r}"
+    src_path = Path(src)
+    dst_path = Path(dst)
+    assert src_path.exists()
+    if dst_path.exists():
+        assert same_contents(src, dst), (
+            f"These two files should be the same, but are not {src!r} vs {dst!r}"
+        )
         return False
-    dst_dir = os.path.dirname(dst)
-    if not os.path.exists(dst_dir):
-        os.makedirs(dst_dir)
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
     return True
 
 
 def summary_of_file(filepath):
+    path = Path(filepath)
     first_20_bytes = None
     with open(filepath, "rb") as ff:
         first_20_bytes = ff.read(20)
-    size = os.path.getsize(filepath)
+    size = path.stat().st_size
 
     hashs = hash_file(filepath)
     print(
@@ -123,23 +130,23 @@ def same_contents(file1, file2):
 
 def smartlink(src, dst):
     logger.debug(f"smartlink({src!r}, {dst!r})")
-    assert os.path.exists(src)
-    if os.path.exists(dst):
-        assert same_contents(
-            src, dst
-        ), f"These two files should be the same, but are not {src!r} vs {dst!r}"
+    src_path = Path(src)
+    dst_path = Path(dst)
+    assert src_path.exists()
+    if dst_path.exists():
+        assert same_contents(src, dst), (
+            f"These two files should be the same, but are not {src!r} vs {dst!r}"
+        )
         logger.debug(
             f"src {src!r} is the same as dst {dst!r}, unlinking src, and adding a hardlink at src that points to dest"
         )
 
-        os.unlink(src)
+        src_path.unlink()
         # we want to link the dst to the src, as the dst might have many other hard links
-        os.link(dst, src)
+        src_path.hardlink_to(dst_path)
         return
-    dst_dir = os.path.dirname(dst)
-    if not os.path.exists(dst_dir):
-        os.makedirs(dst_dir)
-    os.link(src, dst)
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+    dst_path.hardlink_to(src_path)
 
 
 class CannotHardLinkError(Exception):

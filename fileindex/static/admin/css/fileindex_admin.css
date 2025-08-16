@@ -1,0 +1,26 @@
+/* Corruption status styling for fileindex admin */
+.corrupt-status {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.corrupt-status--error {
+    background-color: #ffeaea;
+    color: #d63031;
+    border: 1px solid #fab1a0;
+}
+
+.corrupt-status--success {
+    background-color: #d1f2eb;
+    color: #00b894;
+    border: 1px solid #81ecec;
+}
+
+.corrupt-status--warning {
+    background-color: #fef7e0;
+    color: #fdcb6e;
+    border: 1px solid #fdcb6e;
+}

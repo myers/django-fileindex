@@ -5,5 +5,5 @@ class FileindexAppConfig(AppConfig):
     name = "fileindex"
 
     def ready(self):
-        # Tasks registered with @task are defined in this import
-        from . import tasks  # noqa
+        # Import tasks to register them with the @task decorator
+        from fileindex import tasks  # noqa: F401

@@ -11,7 +11,7 @@ DATABASES = {
         'USER': 'fileindex',
         'PASSWORD': 'fileindex',
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '8732',
         'TEST': {
             'NAME': 'test_fileindex',
         }
