@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-fileindex"
-version = "0.4.1"
+version = "0.4.2"
 description = "A Django app for file deduplication and indexing using SHA hashes"
 readme = "README.md"
 authors = [
@@ -27,7 +27,6 @@ dependencies = [
     "Pillow>=10.0.0",
     "pillow-avif-plugin>=1.3.0",
     "thumbhash-python>=1.0.1",
-    "django-sendfile2>=0.7.0",
     "watchdog>=3.0.0",
     "factory-boy>=3.3.3",
     "tqdm>=4.67.1",

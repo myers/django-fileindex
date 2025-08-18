@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     """
 
     dependencies = [
-        ("fileindex", "0001_initial"),
+        ("fileindex", "0002_alter_filepath_id_alter_indexedfile_id"),
     ]
 
     operations = [
