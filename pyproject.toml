@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-fileindex"
-version = "0.4.0"
+version = "0.4.1"
 description = "A Django app for file deduplication and indexing using SHA hashes"
 readme = "README.md"
 authors = [

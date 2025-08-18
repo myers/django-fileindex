@@ -183,7 +183,7 @@ class IndexedFileManager(models.Manager):
 class IndexedFile(models.Model):
     objects = IndexedFileManager()
 
-    size = models.IntegerField()
+    size = models.BigIntegerField()  # Supports files larger than 2GB
     sha1 = models.CharField(max_length=255, db_index=True, null=True)
     sha512 = models.CharField(max_length=255, db_index=True, null=True, unique=True)
     mime_type = models.CharField(max_length=255, db_index=True, null=True)
