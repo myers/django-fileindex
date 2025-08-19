@@ -62,6 +62,31 @@ python manage.py migrate fileindex
 
 ## Usage
 
+### File Upload Handling in Forms
+
+Django-fileindex provides custom form fields and mixins for easy file upload handling:
+
+```python
+from fileindex import IndexedFileField, IndexedFileModelForm
+
+# Simple form with file upload
+class DocumentForm(forms.Form):
+    file = IndexedFileField(
+        allowed_extensions=['.pdf', '.doc'],
+        max_file_size=10 * 1024 * 1024  # 10MB
+    )
+
+# ModelForm with automatic IndexedFile creation
+class ImageForm(IndexedFileModelForm):
+    class Meta:
+        model = MyModel
+        fields = ['title', 'description']
+    
+    indexed_file_field_name = 'image'  # Field on model that stores IndexedFile
+```
+
+See [File Upload Documentation](docs/file-uploads.md) for detailed examples and best practices.
+
 ### File Import Service
 
 The file import service provides programmatic access to file indexing:
