@@ -2,8 +2,11 @@
 Utility functions for handling file uploads with IndexedFile integration.
 """
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
@@ -14,7 +17,8 @@ from django.core.files.uploadedfile import (
 )
 from django.db import transaction
 
-from .models import IndexedFile
+if TYPE_CHECKING:
+    from .models import IndexedFile
 
 
 def create_indexed_file_from_upload(
@@ -62,6 +66,8 @@ def create_indexed_file_from_upload(
 
     try:
         # Create IndexedFile from the file
+        from .models import IndexedFile
+
         indexed_file, created = IndexedFile.objects.get_or_create_from_file(
             temp_path, derived_from=derived_from, derived_for=derived_for
         )
@@ -217,6 +223,8 @@ def create_indexed_files_batch(
             file_path = default_storage.path(file_name)
 
             # Create IndexedFile from the saved file
+            from .models import IndexedFile
+
             indexed_file, _ = IndexedFile.objects.get_or_create_from_file(file_path)
             indexed_files.append(indexed_file)
 

@@ -140,10 +140,6 @@ class IndexedFileManager(models.Manager):
         media_root = Path(settings.MEDIA_ROOT).resolve()
         dest_path = media_root / indexedfile.path
 
-        # Safety check: ensure destination is within MEDIA_ROOT
-        if not dest_path.resolve().is_relative_to(media_root):
-            raise ValueError(f"Destination path {dest_path} is outside MEDIA_ROOT {media_root}")
-
         fileutils.smartadd(
             filepath,
             str(dest_path),

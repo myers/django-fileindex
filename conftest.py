@@ -1,4 +1,3 @@
-import os
 import subprocess
 import time
 
@@ -6,11 +5,8 @@ import pytest
 
 
 def pytest_configure(config):
-    """Configure pytest and start docker-compose if needed."""
-    # Check if we should use PostgreSQL for tests
-    use_postgres = os.environ.get("USE_POSTGRES", "true").lower() == "true"
-
-    if use_postgres:
+    """Configure pytest and start docker-compose."""
+    try:
         # Start docker-compose
         print("Starting PostgreSQL with docker-compose...")
         subprocess.run(["docker-compose", "up", "-d"], check=True)
@@ -35,16 +31,19 @@ def pytest_configure(config):
                 break
             time.sleep(1)
         else:
+            # Clean up if startup failed
+            subprocess.run(["docker-compose", "down"], check=False)
             raise RuntimeError("PostgreSQL failed to start within 30 seconds")
+    except Exception:
+        # Ensure cleanup on any failure
+        subprocess.run(["docker-compose", "down"], check=False)
+        raise
 
 
 def pytest_unconfigure(config):
     """Stop docker-compose after tests."""
-    use_postgres = os.environ.get("USE_POSTGRES", "true").lower() == "true"
-
-    if use_postgres:
-        print("Stopping PostgreSQL...")
-        subprocess.run(["docker-compose", "down"], check=True)
+    print("Stopping PostgreSQL...")
+    subprocess.run(["docker-compose", "down"], check=True)
 
 
 @pytest.fixture(scope="session")

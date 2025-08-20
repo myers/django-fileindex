@@ -3,92 +3,91 @@ import os
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from watchdog.events import FileSystemEventHandler, LoggingEventHandler
-from watchdog.observers.polling import PollingObserver
+from watchdog.events import LoggingEventHandler
 
-from fileindex.models import IndexedFile
-from fileindex.services.file_validation import should_import
-
-
-class WatchEventHandler(FileSystemEventHandler):
-    def __init__(self, callback):
-        self.callback = callback
-
-    def on_close(self, event):
-        if event.is_directory:
-            return
-        self.callback(event.src_path)
-
-    def on_created(self, event):
-        if event.is_directory:
-            return
-        self.callback(event.src_path)
-
-    def on_moved(self, event):
-        if event.is_directory:
-            return
-        self.callback(event.src_path)
+from fileindex.services.watch import DirectoryWatcher
 
 
 class Command(BaseCommand):
-    help = "Move and import all supported files from a set of paths. Watches for new files that are added."
+    help = "Watch directories and import new files as they are added"
 
     def add_arguments(self, parser):
-        parser.add_argument("paths", nargs="+")
+        parser.add_argument("paths", nargs="+", help="Directories to watch for new files")
 
-    def setup_logger(self, options):
+        parser.add_argument(
+            "--delete-after",
+            action="store_true",
+            default=False,
+            help="Delete original files after successful import",
+        )
+
+    def handle(self, *args, **options):
+        assert os.path.exists(settings.MEDIA_ROOT), f"MEDIA_ROOT does not exist: {settings.MEDIA_ROOT!r}"
+
+        # Setup logging
         verbosity = int(options["verbosity"])
         root_logger = logging.getLogger("")
         if verbosity > 1:
             root_logger.setLevel(logging.DEBUG)
 
-    def handle(self, *args, **options):
-        assert os.path.exists(settings.MEDIA_ROOT), f"MEDIA_ROOT does not exists: {settings.MEDIA_ROOT!r}"
+        # Create callbacks for progress reporting
+        def file_event_callback(filepath, success, message):
+            if success:
+                self.stdout.write(self.style.SUCCESS(f"{message}: {filepath}"))
+            elif "Skipped" in message:
+                self.stdout.write(self.style.WARNING(f"{message}"))
+            else:
+                self.stdout.write(self.style.ERROR(f"{message}"))
 
-        self.setup_logger(options)
-        observer = self.setup_watcher(*args, **options)
+        def import_progress_callback(filepath, success, error_msg):
+            if verbosity > 1:
+                if success:
+                    self.stdout.write(f"  ✓ {filepath}")
+                else:
+                    self.stdout.write(f"  ✗ {filepath}: {error_msg if error_msg else 'Failed'}")
+
+        # Create the watcher service
+        watcher = DirectoryWatcher(
+            paths=options["paths"],
+            delete_after=options.get("delete_after", False),
+            recursive=True,
+            validate=True,
+            file_event_callback=file_event_callback,
+            import_progress_callback=import_progress_callback if verbosity > 1 else None,
+        )
+
+        # Import existing files first
+        self.stdout.write("Importing existing files...")
+        results = watcher.import_existing_files()
+
+        # Print summary for each directory
+        self.stdout.write("\n" + "=" * 60)
+        for dirpath, stats in results.items():
+            self.stdout.write(f"\nDirectory: {dirpath}")
+            self.stdout.write(self.style.SUCCESS(f"  Imported: {stats['imported']} files"))
+            self.stdout.write(self.style.SUCCESS(f"  Created: {stats['created']} new entries"))
+            self.stdout.write(self.style.WARNING(f"  Skipped: {stats['skipped']} files"))
+            if stats["errors"]:
+                self.stdout.write(self.style.ERROR(f"  Errors: {len(stats['errors'])} files"))
+
+        # Start watching for new files
+        self.stdout.write("=" * 60)
+        self.stdout.write("\nWatching for new files...")
         for path in options["paths"]:
-            self.import_dir(path)
-        self.wait_for_observer(observer)
+            self.stdout.write(f"  • {path}")
 
-    def setup_watcher(self, *args, **options):
-        event_handler = WatchEventHandler(self.import_file)
-        event_handler2 = LoggingEventHandler()
-        observer = PollingObserver()
-        for path in options["paths"]:
-            print(path)
-            observer.schedule(event_handler, path, recursive=True)
-            observer.schedule(event_handler2, path, recursive=True)
-        observer.start()
-        return observer
+        # Add verbose logging if requested
+        if verbosity > 1:
+            observer = watcher.start_watching()
+            # Add logging event handler for verbose output
+            event_handler = LoggingEventHandler()
+            for path in options["paths"]:
+                observer.schedule(event_handler, path, recursive=True)
 
-    def wait_for_observer(self, observer):
+        # Start watching and wait
         try:
-            while observer.is_alive():
-                observer.join(1)
-        finally:
-            observer.stop()
-            observer.join()
+            watcher.watch_and_wait()
+        except KeyboardInterrupt:
+            self.stdout.write("\nStopping watcher...")
 
-    def import_file(self, filepath):
-        if not should_import(filepath):
-            print(f"not importing {filepath!r}")
-            return False
-        print(f"importing {filepath!r}...", end="", flush=True)
-        try:
-            indexed_file, created = IndexedFile.objects.get_or_create_from_file(filepath)
-        except Exception as ee:
-            print(f"Error while importing: {ee!r}")
-            return False
-        print("done", flush=True)
-        assert os.path.exists(indexed_file.file.path)
-        os.unlink(filepath)
-        return True
-
-    def import_dir(self, dirpath):
-        for root, dirs, files in os.walk(dirpath):
-            dirs.sort()
-            files.sort()
-            for fn in files:
-                filepath = os.path.join(root, fn)
-                self.import_file(filepath)
+        self.stdout.write(self.style.SUCCESS("\nWatch stopped."))

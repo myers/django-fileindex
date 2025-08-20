@@ -1,24 +1,23 @@
 import logging
 import os
-import pprint
 
 from django.core.management.base import BaseCommand
 
-from fileindex.models import IndexedFile
-from fileindex.services.file_validation import should_import
+from fileindex.exceptions import ImportErrorType
+from fileindex.services.file_import import import_directory, import_file
 
 
 class Command(BaseCommand):
-    help = "Index all files"
+    help = "Index files into the fileindex system"
 
     def add_arguments(self, parser):
-        parser.add_argument("paths", nargs="+")
+        parser.add_argument("paths", nargs="+", help="Paths to files or directories to index")
 
         parser.add_argument(
             "--only-hard-links",
             action="store_true",
             default=False,
-            help="Only allow hard links",
+            help="Only create hard links (no copying)",
         )
 
     def setup_logger(self, options):
@@ -29,31 +28,70 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.setup_logger(options)
-        self.errors = {}
+        only_hard_link = options["only_hard_links"]
+        total_stats = {
+            "imported": 0,
+            "created": 0,
+            "skipped": 0,
+            "errors": {},
+        }
+
         for path in options["paths"]:
             if os.path.isfile(path):
-                self.import_file(path, **options)
+                # Import single file
+                self.stdout.write(f"Importing file: {path}")
+                indexed_file, created, error = import_file(
+                    path,
+                    only_hard_link=only_hard_link,
+                    validate=True,
+                )
+
+                if error:
+                    if error == ImportErrorType.VALIDATION_FAILED:
+                        total_stats["skipped"] += 1
+                        self.stdout.write(self.style.WARNING(f"Skipped: {path}"))
+                    else:
+                        total_stats["errors"][path] = str(error)
+                        self.stdout.write(self.style.ERROR(f"Error: {error}"))
+                else:
+                    total_stats["imported"] += 1
+                    if created:
+                        total_stats["created"] += 1
+                    self.stdout.write(self.style.SUCCESS(f"Imported: {path}"))
             else:
-                self.import_dir(path, **options)
-        pprint.pprint(self.errors)
+                # Import directory
+                self.stdout.write(f"Importing directory: {path}")
 
-    def import_file(self, filepath, **options):
-        if not should_import(filepath):
-            print(f"not importing {filepath!r}")
-            return False
-        print(f"importing {filepath!r}...")
-        try:
-            IndexedFile.objects.get_or_create_from_file(filepath, only_hard_link=options["only_hard_links"])
-        except Exception as ee:
-            self.errors[filepath] = str(ee)
-            print(f"holy cats an error {ee!r}")
-            return False
-        return True
+                def progress_callback(filepath, success, error_msg):
+                    if options["verbosity"] > 1:
+                        if success:
+                            self.stdout.write(f"  ✓ {filepath}")
+                        else:
+                            self.stdout.write(f"  ✗ {filepath}: {error_msg if error_msg else 'Failed'}")
 
-    def import_dir(self, dirpath, **options):
-        for root, dirs, files in os.walk(dirpath):
-            dirs.sort()
-            files.sort()
-            for fn in files:
-                filepath = os.path.join(root, fn)
-                self.import_file(filepath, **options)
+                stats = import_directory(
+                    path,
+                    recursive=True,
+                    only_hard_link=only_hard_link,
+                    validate=True,
+                    progress_callback=progress_callback,
+                )
+
+                # Merge stats
+                total_stats["imported"] += stats["imported"]
+                total_stats["created"] += stats["created"]
+                total_stats["skipped"] += stats["skipped"]
+                total_stats["errors"].update(stats["errors"])
+
+        # Print summary
+        self.stdout.write("\n" + "=" * 60)
+        self.stdout.write(self.style.SUCCESS(f"Imported: {total_stats['imported']} files"))
+        self.stdout.write(self.style.SUCCESS(f"Created: {total_stats['created']} new entries"))
+        self.stdout.write(self.style.WARNING(f"Skipped: {total_stats['skipped']} files"))
+
+        if total_stats["errors"]:
+            self.stdout.write(self.style.ERROR(f"\nErrors ({len(total_stats['errors'])} files):"))
+            for filepath, error in list(total_stats["errors"].items())[:10]:
+                self.stdout.write(self.style.ERROR(f"  {filepath}: {error}"))
+            if len(total_stats["errors"]) > 10:
+                self.stdout.write(self.style.ERROR(f"  ... and {len(total_stats['errors']) - 10} more"))

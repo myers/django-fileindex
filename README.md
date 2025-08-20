@@ -92,27 +92,15 @@ See [File Upload Documentation](docs/file-uploads.md) for detailed examples and 
 The file import service provides programmatic access to file indexing:
 
 ```python
-from fileindex.file_import_service import import_single_file, import_paths
+from fileindex.services.file_import import import_file, batch_import_files
 
 # Import a single file
-indexed_file, created, error = import_single_file('/path/to/file.jpg')
+indexed_file, created, error = import_file('/path/to/file.jpg')
 
-# Import multiple paths (files and directories)
-errors = import_paths(['/path/to/files', '/path/to/single/file.txt'])
-```
-
-### File Watching Service
-
-Monitor directories for new files and automatically import them:
-
-```python
-from fileindex.watch_service import watch_and_import
-
-# Watch directories and import files
-watch_and_import(
-    paths=['/path/to/watch'],
-    remove_after_import=True,  # Delete originals after import
-    import_existing=True       # Import existing files first
+# Import multiple files in batch
+stats = batch_import_files(
+    ['/path/to/file1.jpg', '/path/to/file2.png'],
+    delete_after=True  # Delete originals after import
 )
 ```
 

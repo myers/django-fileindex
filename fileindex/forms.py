@@ -5,9 +5,6 @@ Form mixins and utilities for handling file uploads with IndexedFile integration
 from django import forms
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import transaction
-
-from .models import IndexedFile
 
 
 class IndexedFileUploadMixin:
@@ -80,6 +77,8 @@ class IndexedFileUploadMixin:
             file_path = default_storage.path(file_name)
 
             # Create IndexedFile from the saved file
+            from .models import IndexedFile
+
             indexed_file, _ = IndexedFile.objects.get_or_create_from_file(file_path)
 
             # Delete the temporary file since IndexedFile creates its own copy
@@ -93,94 +92,6 @@ class IndexedFileUploadMixin:
             if default_storage.exists(file_name):
                 default_storage.delete(file_name)
             raise
-
-
-class MultipleIndexedFilesFormMixin:
-    """
-    Mixin for forms that need to handle multiple file uploads.
-
-    Usage:
-        class DocumentUploadForm(MultipleIndexedFilesFormMixin, forms.Form):
-            files = forms.FileField(
-                widget=forms.ClearableFileInput(attrs={'multiple': True})
-            )
-
-            multiple_files_field_name = 'files'
-
-            def save_indexed_files(self, indexed_files):
-                # Custom logic to handle the created IndexedFile instances
-                for indexed_file in indexed_files:
-                    Document.objects.create(file=indexed_file)
-    """
-
-    multiple_files_field_name = "files"  # Override in subclass
-    upload_path_prefix = "uploads/temp"  # Override in subclass
-
-    def clean(self):
-        """
-        Process multiple file uploads during form validation.
-        """
-        cleaned_data = super().clean()
-
-        files = self.files.getlist(self.multiple_files_field_name)
-        if files:
-            indexed_files = self._create_indexed_files(files)
-            cleaned_data["indexed_files"] = indexed_files
-
-        return cleaned_data
-
-    def _create_indexed_files(self, files):
-        """
-        Create IndexedFile instances from multiple uploaded files.
-
-        Args:
-            files: List of uploaded files
-
-        Returns:
-            List[IndexedFile]: List of created IndexedFile instances
-        """
-        indexed_files = []
-        temp_files = []
-
-        try:
-            with transaction.atomic():
-                for file in files:
-                    # Save the file temporarily
-                    file_name = default_storage.save(
-                        f"{self.upload_path_prefix}/{file.name}",
-                        ContentFile(file.read()),
-                    )
-                    temp_files.append(file_name)
-
-                    # Get the full path to the saved file
-                    file_path = default_storage.path(file_name)
-
-                    # Create IndexedFile from the saved file
-                    indexed_file, _ = IndexedFile.objects.get_or_create_from_file(file_path)
-                    indexed_files.append(indexed_file)
-
-            # Clean up temporary files after successful processing
-            for temp_file in temp_files:
-                if default_storage.exists(temp_file):
-                    default_storage.delete(temp_file)
-
-            return indexed_files
-
-        except Exception:
-            # Clean up all temporary files on error
-            for temp_file in temp_files:
-                if default_storage.exists(temp_file):
-                    default_storage.delete(temp_file)
-            raise
-
-    def save_indexed_files(self, indexed_files):
-        """
-        Override this method to handle the created IndexedFile instances.
-
-        Args:
-            indexed_files: List of IndexedFile instances
-        """
-        raise NotImplementedError("Subclasses must implement save_indexed_files method")
 
 
 class IndexedFileModelForm(IndexedFileUploadMixin, forms.ModelForm):

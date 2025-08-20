@@ -2,6 +2,7 @@
 Django settings for running tests
 """
 
+import os
 import tempfile
 
 SECRET_KEY = "test-secret-key-for-django-fileindex"
@@ -52,8 +53,15 @@ TEMPLATES = [
 # Database
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "fileindex_test",
+        "USER": "fileindex",
+        "PASSWORD": "fileindex",
+        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+        "PORT": os.environ.get("POSTGRES_PORT", "8732"),
+        "TEST": {
+            "NAME": "test_fileindex",
+        },
     }
 }
 

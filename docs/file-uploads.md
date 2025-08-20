@@ -74,21 +74,6 @@ class ImageUploadForm(forms.Form):
     )
 ```
 
-### MultipleIndexedFilesField
-
-Handle multiple file uploads at once:
-
-```python
-from fileindex import MultipleIndexedFilesField
-
-class GalleryForm(forms.Form):
-    images = MultipleIndexedFilesField(
-        widget=forms.ClearableFileInput(attrs={'multiple': True}),
-        allowed_extensions=['.jpg', '.png'],
-        max_file_size=5 * 1024 * 1024,  # Per file
-        max_files=10  # Maximum 10 files
-    )
-```
 
 ## Form Mixins
 
@@ -110,27 +95,6 @@ class ProductImageForm(IndexedFileUploadMixin, forms.ModelForm):
     upload_path_prefix = 'products/images/temp'
 ```
 
-### MultipleIndexedFilesFormMixin
-
-Handle multiple file uploads in a form:
-
-```python
-from fileindex import MultipleIndexedFilesFormMixin
-
-class BatchUploadForm(MultipleIndexedFilesFormMixin, forms.Form):
-    category = forms.CharField(max_length=100)
-
-    multiple_files_field_name = 'files'
-    upload_path_prefix = 'batch/temp'
-
-    def save_indexed_files(self, indexed_files):
-        # Custom logic to handle the uploaded files
-        for indexed_file in indexed_files:
-            Document.objects.create(
-                category=self.cleaned_data['category'],
-                file=indexed_file
-            )
-```
 
 ## Utility Functions
 
