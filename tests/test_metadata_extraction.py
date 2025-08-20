@@ -78,9 +78,7 @@ class TestMetadataExtraction:
             mock_img.__enter__.return_value = mock_img
             mock_open.return_value = mock_img
 
-            metadata, is_corrupt = _extract_image_metadata(
-                "/fake/path.jpg", "image/jpeg"
-            )
+            metadata, is_corrupt = _extract_image_metadata("/fake/path.jpg", "image/jpeg")
 
             assert is_corrupt
             assert metadata == {}
@@ -90,9 +88,7 @@ class TestMetadataExtraction:
         # Create a test GIF image
         tmp_path = create_test_image(suffix=".gif", size=(100, 100), color="blue")
 
-        with patch(
-            "fileindex.services.metadata_extraction.media_analysis.get_duration"
-        ) as mock_duration:
+        with patch("fileindex.services.metadata_extraction.media_analysis.get_duration") as mock_duration:
             mock_duration.return_value = 2.5  # 2.5 seconds
 
             metadata, is_corrupt = _extract_image_metadata(tmp_path, "image/gif")
@@ -105,9 +101,7 @@ class TestMetadataExtraction:
 
     def test_extract_video_metadata_valid(self):
         """Test extracting metadata from a valid video."""
-        with patch(
-            "fileindex.services.metadata_extraction.media_analysis.extract_video_metadata"
-        ) as mock_extract:
+        with patch("fileindex.services.metadata_extraction.media_analysis.extract_video_metadata") as mock_extract:
             mock_extract.return_value = {
                 "width": 1920,
                 "height": 1080,
@@ -125,9 +119,7 @@ class TestMetadataExtraction:
 
     def test_extract_video_metadata_missing_fields(self):
         """Test handling of video with missing required fields."""
-        with patch(
-            "fileindex.services.metadata_extraction.media_analysis.extract_video_metadata"
-        ) as mock_extract:
+        with patch("fileindex.services.metadata_extraction.media_analysis.extract_video_metadata") as mock_extract:
             mock_extract.return_value = {
                 "width": 1920,
                 "height": 1080,
@@ -144,9 +136,7 @@ class TestMetadataExtraction:
 
     def test_extract_video_metadata_invalid_values(self):
         """Test handling of video with invalid metadata values."""
-        with patch(
-            "fileindex.services.metadata_extraction.media_analysis.extract_video_metadata"
-        ) as mock_extract:
+        with patch("fileindex.services.metadata_extraction.media_analysis.extract_video_metadata") as mock_extract:
             mock_extract.return_value = {
                 "width": -1,  # Invalid
                 "height": 0,  # Invalid
@@ -165,9 +155,7 @@ class TestMetadataExtraction:
 
     def test_extract_audio_metadata_valid(self):
         """Test extracting metadata from a valid audio file."""
-        with patch(
-            "fileindex.services.metadata_extraction.media_analysis.extract_audio_metadata"
-        ) as mock_extract:
+        with patch("fileindex.services.metadata_extraction.media_analysis.extract_audio_metadata") as mock_extract:
             mock_extract.return_value = {
                 "duration": 180.75,
             }
@@ -179,9 +167,7 @@ class TestMetadataExtraction:
 
     def test_extract_audio_metadata_missing_duration(self):
         """Test handling of audio with missing duration."""
-        with patch(
-            "fileindex.services.metadata_extraction.media_analysis.extract_audio_metadata"
-        ) as mock_extract:
+        with patch("fileindex.services.metadata_extraction.media_analysis.extract_audio_metadata") as mock_extract:
             mock_extract.return_value = {}
 
             metadata, is_corrupt = _extract_audio_metadata("/fake/audio.mp3")
@@ -191,9 +177,7 @@ class TestMetadataExtraction:
 
     def test_extract_audio_metadata_invalid_duration(self):
         """Test handling of audio with invalid duration."""
-        with patch(
-            "fileindex.services.metadata_extraction.media_analysis.extract_audio_metadata"
-        ) as mock_extract:
+        with patch("fileindex.services.metadata_extraction.media_analysis.extract_audio_metadata") as mock_extract:
             mock_extract.return_value = {
                 "duration": -10,  # Invalid
             }
@@ -216,9 +200,7 @@ class TestMetadataExtraction:
 
     def test_extract_required_metadata_video(self):
         """Test main extraction function with video."""
-        with patch(
-            "fileindex.services.metadata_extraction.media_analysis.extract_video_metadata"
-        ) as mock_extract:
+        with patch("fileindex.services.metadata_extraction.media_analysis.extract_video_metadata") as mock_extract:
             mock_extract.return_value = {
                 "width": 1280,
                 "height": 720,
@@ -226,9 +208,7 @@ class TestMetadataExtraction:
                 "frame_rate": 24.0,
             }
 
-            metadata, is_corrupt = extract_required_metadata(
-                "video/mp4", "/fake/video.mp4"
-            )
+            metadata, is_corrupt = extract_required_metadata("video/mp4", "/fake/video.mp4")
 
             assert not is_corrupt
             assert metadata["width"] == 1280
@@ -238,25 +218,19 @@ class TestMetadataExtraction:
 
     def test_extract_required_metadata_audio(self):
         """Test main extraction function with audio."""
-        with patch(
-            "fileindex.services.metadata_extraction.media_analysis.extract_audio_metadata"
-        ) as mock_extract:
+        with patch("fileindex.services.metadata_extraction.media_analysis.extract_audio_metadata") as mock_extract:
             mock_extract.return_value = {
                 "duration": 240.0,
             }
 
-            metadata, is_corrupt = extract_required_metadata(
-                "audio/mpeg", "/fake/audio.mp3"
-            )
+            metadata, is_corrupt = extract_required_metadata("audio/mpeg", "/fake/audio.mp3")
 
             assert not is_corrupt
             assert metadata["duration"] == 240000
 
     def test_extract_required_metadata_unknown_type(self):
         """Test main extraction function with unknown file type."""
-        metadata, is_corrupt = extract_required_metadata(
-            "application/pdf", "/fake/document.pdf"
-        )
+        metadata, is_corrupt = extract_required_metadata("application/pdf", "/fake/document.pdf")
 
         assert not is_corrupt
         assert metadata == {}
@@ -273,9 +247,7 @@ class TestMetadataExtraction:
         with patch("fileindex.services.metadata_extraction.Image.open") as mock_open:
             mock_open.side_effect = Exception("Test error")
 
-            metadata, is_corrupt = extract_required_metadata(
-                "image/jpeg", "/fake/image.jpg"
-            )
+            metadata, is_corrupt = extract_required_metadata("image/jpeg", "/fake/image.jpg")
 
             assert is_corrupt
             assert metadata == {}
@@ -293,9 +265,7 @@ class TestMetadataExtraction:
         tmp_path = create_test_image(suffix=".png", size=(50, 50), color="yellow")
 
         # Test with bytes return
-        with patch(
-            "fileindex.services.metadata_extraction.image_to_thumbhash"
-        ) as mock_thumbhash:
+        with patch("fileindex.services.metadata_extraction.image_to_thumbhash") as mock_thumbhash:
             mock_thumbhash.return_value = b"\x01\x02\x03"
 
             metadata, is_corrupt = _extract_image_metadata(tmp_path, "image/png")
@@ -304,9 +274,7 @@ class TestMetadataExtraction:
             assert metadata["thumbhash"] == "010203"
 
         # Test with string return
-        with patch(
-            "fileindex.services.metadata_extraction.image_to_thumbhash"
-        ) as mock_thumbhash:
+        with patch("fileindex.services.metadata_extraction.image_to_thumbhash") as mock_thumbhash:
             mock_thumbhash.return_value = "abcdef"
 
             metadata, is_corrupt = _extract_image_metadata(tmp_path, "image/png")

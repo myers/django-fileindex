@@ -26,9 +26,7 @@ ANIMATED_IMAGE_FORMATS: Final[list[AnimatedImageFormat]] = [
 logger = logging.getLogger(__name__)
 
 
-def extract_required_metadata(
-    mime_type: str | None, filepath: str
-) -> tuple[FileMetadata, bool]:
+def extract_required_metadata(mime_type: str | None, filepath: str) -> tuple[FileMetadata, bool]:
     """Extract metadata required by database constraints.
 
     Args:
@@ -57,11 +55,7 @@ def extract_required_metadata(
     except Exception as e:
         # If metadata extraction fails, mark as corrupt to satisfy constraints
         error_type = type(e).__name__
-        logger.error(
-            f"Failed to extract metadata for {filepath} "
-            f"(MIME: {mime_type}): "
-            f"{error_type}: {e}"
-        )
+        logger.error(f"Failed to extract metadata for {filepath} (MIME: {mime_type}): {error_type}: {e}")
         return {}, True
 
 
@@ -85,10 +79,7 @@ def _extract_image_metadata(filepath: str, mime_type: str) -> tuple[FileMetadata
             metadata["width"] = img.width
             metadata["height"] = img.height
         else:
-            logger.warning(
-                f"Invalid dimensions for {filepath}: "
-                f"width={img.width}, height={img.height}"
-            )
+            logger.warning(f"Invalid dimensions for {filepath}: width={img.width}, height={img.height}")
             return metadata, True
 
         # Generate thumbhash
@@ -159,9 +150,7 @@ def _extract_video_metadata(filepath: str) -> tuple[FileMetadata, bool]:
     required_video_fields = ["width", "height", "duration", "frame_rate"]
     missing_fields = [f for f in required_video_fields if f not in metadata]
     if missing_fields:
-        logger.warning(
-            f"Missing required metadata for video {filepath}: {missing_fields}"
-        )
+        logger.warning(f"Missing required metadata for video {filepath}: {missing_fields}")
         is_corrupt = True
 
     return metadata, is_corrupt

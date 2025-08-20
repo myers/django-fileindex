@@ -41,9 +41,7 @@ def serve_fileindex_media(request, path):
         filename = path_parts[-1]
         # In case there's still an extension (legacy), remove it
         hash_part = filename.split(".")[0]
-        logger.debug(
-            f"serve_fileindex_media: filename={filename}, hash_part={hash_part}"
-        )
+        logger.debug(f"serve_fileindex_media: filename={filename}, hash_part={hash_part}")
 
         # Try to find the IndexedFile - first with the hash as-is, then with padding
         indexed_file = None
@@ -51,9 +49,7 @@ def serve_fileindex_media(request, path):
         # Try exact match first (new extensionless format)
         try:
             indexed_file = IndexedFile.objects.get(sha512=hash_part)
-            logger.debug(
-                f"serve_fileindex_media: found IndexedFile with exact hash={hash_part}"
-            )
+            logger.debug(f"serve_fileindex_media: found IndexedFile with exact hash={hash_part}")
         except IndexedFile.DoesNotExist:
             # Try with padding added (legacy format)
             padded_hash = hash_part
@@ -62,9 +58,7 @@ def serve_fileindex_media(request, path):
 
             try:
                 indexed_file = IndexedFile.objects.get(sha512=padded_hash)
-                logger.debug(
-                    f"serve_fileindex_media: found IndexedFile with padded hash={padded_hash}"
-                )
+                logger.debug(f"serve_fileindex_media: found IndexedFile with padded hash={padded_hash}")
             except IndexedFile.DoesNotExist:
                 logger.warning(
                     f"serve_fileindex_media: IndexedFile not found for hash={hash_part} or padded={padded_hash}"
@@ -80,9 +74,7 @@ def serve_fileindex_media(request, path):
             # Override with MIME type from database
             if indexed_file.mime_type:
                 response["Content-Type"] = indexed_file.mime_type
-                logger.debug(
-                    f"serve_fileindex_media: set Content-Type to {indexed_file.mime_type}"
-                )
+                logger.debug(f"serve_fileindex_media: set Content-Type to {indexed_file.mime_type}")
 
             # Force inline display for images to prevent download
             if indexed_file.mime_type and indexed_file.mime_type.startswith("image/"):
@@ -101,9 +93,7 @@ def serve_fileindex_media(request, path):
 def lookup(request):
     if not should_import_filename(request.GET["filename"]):
         return HttpResponseBadRequest("cannot import")
-    files = get_list_or_404(
-        IndexedFile, sha512=request.GET["sha512"], sha1=request.GET["sha1"]
-    )
+    files = get_list_or_404(IndexedFile, sha512=request.GET["sha512"], sha1=request.GET["sha1"])
     if len(files) > 1:
         return render(request, "fileindex/lookup.html", {"files": files})
     return redirect("fileindex:detail", permanent=True, pk=files[0].pk)
@@ -118,12 +108,8 @@ def add(request):
     TEMP_DIR.mkdir(parents=True, exist_ok=True)
     filepath_nfo = {
         "path": request.POST["path"],
-        "ctime": datetime.datetime.fromtimestamp(
-            float(request.POST["ctime"]), local_tz
-        ),
-        "mtime": datetime.datetime.fromtimestamp(
-            float(request.POST["mtime"]), local_tz
-        ),
+        "ctime": datetime.datetime.fromtimestamp(float(request.POST["ctime"]), local_tz),
+        "mtime": datetime.datetime.fromtimestamp(float(request.POST["mtime"]), local_tz),
         "hostname": request.POST["hostname"],
     }
     if not should_import_filename(request.POST["path"]):
@@ -134,9 +120,7 @@ def add(request):
         dst.flush()
         if not should_import(dst.name):
             return HttpResponseBadRequest("cannot import")
-        indexedfile, created = IndexedFile.objects.get_or_create_with_filepath_nfo(
-            dst.name, **filepath_nfo
-        )
+        indexedfile, created = IndexedFile.objects.get_or_create_with_filepath_nfo(dst.name, **filepath_nfo)
         return redirect("fileindex:detail", pk=indexedfile.pk)
 
 
@@ -161,9 +145,7 @@ class FilesWithoutMetadataView(ListView):
             IndexedFile.objects.filter(Q(metadata={}) | Q(metadata__isnull=True))
             .select_related("indexedimage", "indexedvideo", "indexedaudio")
             .prefetch_related(
-                Prefetch(
-                    "filepath_set", queryset=FilePath.objects.order_by("-created_at")
-                ),
+                Prefetch("filepath_set", queryset=FilePath.objects.order_by("-created_at")),
                 "postfile_set__post__source",
                 "postimage_set__post__source",
                 "postvideo_set__post__source",
@@ -190,9 +172,7 @@ class FilesWithoutMetadataView(ListView):
         context = super().get_context_data(**kwargs)
 
         # Add summary statistics
-        total_without_metadata = IndexedFile.objects.filter(
-            Q(metadata={}) | Q(metadata__isnull=True)
-        ).count()
+        total_without_metadata = IndexedFile.objects.filter(Q(metadata={}) | Q(metadata__isnull=True)).count()
 
         # Breakdown by type
         images_without = IndexedFile.objects.filter(
@@ -242,9 +222,7 @@ class VideoMetadataIssuesView(ListView):
             )
             .select_related("indexedvideo")
             .prefetch_related(
-                Prefetch(
-                    "filepath_set", queryset=FilePath.objects.order_by("-created_at")
-                ),
+                Prefetch("filepath_set", queryset=FilePath.objects.order_by("-created_at")),
                 "postvideo_set__post__source",
                 "postfile_set__post__source",
             )
@@ -255,9 +233,7 @@ class VideoMetadataIssuesView(ListView):
         context = super().get_context_data(**kwargs)
 
         # Add video statistics
-        total_videos = IndexedFile.objects.filter(
-            mime_type__startswith="video/"
-        ).count()
+        total_videos = IndexedFile.objects.filter(mime_type__startswith="video/").count()
         videos_with_complete_metadata = (
             IndexedFile.objects.filter(
                 mime_type__startswith="video/",

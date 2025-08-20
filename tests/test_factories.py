@@ -109,9 +109,7 @@ class FactoryHelpersTestCase(TestCase):
 
     def test_image_create_with_actual_file(self):
         """Test creating ImageFile with actual file."""
-        image_file = ImageFileFactory.create_with_actual_file(
-            width=300, height=200, color="green"
-        )
+        image_file = ImageFileFactory.create_with_actual_file(width=300, height=200, color="green")
 
         # Should have proper image metadata extracted
         self.assertEqual(image_file.mime_type, "image/png")

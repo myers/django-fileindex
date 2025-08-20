@@ -112,9 +112,7 @@ class IndexedFileManager(models.Manager):
         # Extract metadata BEFORE creating the object to satisfy constraints
         from fileindex.services.metadata_extraction import extract_required_metadata
 
-        metadata, is_corrupt = extract_required_metadata(
-            nfo["mime_type"], str(filepath)
-        )
+        metadata, is_corrupt = extract_required_metadata(nfo["mime_type"], str(filepath))
 
         # Add the extracted metadata to defaults
         if metadata:
@@ -144,9 +142,7 @@ class IndexedFileManager(models.Manager):
 
         # Safety check: ensure destination is within MEDIA_ROOT
         if not dest_path.resolve().is_relative_to(media_root):
-            raise ValueError(
-                f"Destination path {dest_path} is outside MEDIA_ROOT {media_root}"
-            )
+            raise ValueError(f"Destination path {dest_path} is outside MEDIA_ROOT {media_root}")
 
         fileutils.smartadd(
             filepath,
@@ -167,9 +163,7 @@ class IndexedFileManager(models.Manager):
 
         return indexedfile, created
 
-    def get_or_create_from_file(
-        self, filepath, only_hard_link=False, derived_from=None, derived_for=None
-    ):
+    def get_or_create_from_file(self, filepath, only_hard_link=False, derived_from=None, derived_for=None):
         fp_nfo = filepath_nfo_from_file(str(filepath))
         return self.get_or_create_with_filepath_nfo(
             filepath,
@@ -212,7 +206,8 @@ class IndexedFile(models.Model):
             (None, "Original file"),
             ("thumbnail", "Video thumbnail"),
             ("compression", "Compressed version (e.g., AVIF from GIF)"),
-            # Future: ('preview', 'Document preview'), ('transcoded', 'Transcoded video'), etc.
+            # Future: ('preview', 'Document preview'),
+            # ('transcoded', 'Transcoded video'), etc.
         ],
     )
 
@@ -232,30 +227,17 @@ class IndexedFile(models.Model):
             # Images and videos must have dimensions (unless corrupt)
             models.CheckConstraint(
                 condition=(
-                    models.Q(
-                        corrupt__isnull=False, corrupt=True
-                    )  # Only skip if explicitly corrupt=True
-                    | ~(
-                        models.Q(mime_type__startswith="image/")
-                        | models.Q(mime_type__startswith="video/")
-                    )
-                    | (
-                        models.Q(metadata__has_key="width")
-                        & models.Q(metadata__has_key="height")
-                    )
+                    models.Q(corrupt__isnull=False, corrupt=True)  # Only skip if explicitly corrupt=True
+                    | ~(models.Q(mime_type__startswith="image/") | models.Q(mime_type__startswith="video/"))
+                    | (models.Q(metadata__has_key="width") & models.Q(metadata__has_key="height"))
                 ),
                 name="visual_media_requires_dimensions",
             ),
             # Audio and video must have duration (unless corrupt)
             models.CheckConstraint(
                 condition=(
-                    models.Q(
-                        corrupt__isnull=False, corrupt=True
-                    )  # Only skip if explicitly corrupt=True
-                    | ~(
-                        models.Q(mime_type__startswith="audio/")
-                        | models.Q(mime_type__startswith="video/")
-                    )
+                    models.Q(corrupt__isnull=False, corrupt=True)  # Only skip if explicitly corrupt=True
+                    | ~(models.Q(mime_type__startswith="audio/") | models.Q(mime_type__startswith="video/"))
                     | models.Q(metadata__has_key="duration")
                 ),
                 name="media_requires_duration",
@@ -263,9 +245,7 @@ class IndexedFile(models.Model):
             # Videos must have frame_rate (unless corrupt)
             models.CheckConstraint(
                 condition=(
-                    models.Q(
-                        corrupt__isnull=False, corrupt=True
-                    )  # Only skip if explicitly corrupt=True
+                    models.Q(corrupt__isnull=False, corrupt=True)  # Only skip if explicitly corrupt=True
                     | ~models.Q(mime_type__startswith="video/")
                     | models.Q(metadata__has_key="frame_rate")
                 ),
@@ -274,9 +254,7 @@ class IndexedFile(models.Model):
             # Animated images must have duration (unless corrupt)
             models.CheckConstraint(
                 condition=(
-                    models.Q(
-                        corrupt__isnull=False, corrupt=True
-                    )  # Only skip if explicitly corrupt=True
+                    models.Q(corrupt__isnull=False, corrupt=True)  # Only skip if explicitly corrupt=True
                     | ~models.Q(metadata__animated=True)
                     | models.Q(metadata__has_key="duration")
                 ),
@@ -334,7 +312,8 @@ class IndexedFile(models.Model):
         return None
 
 
-# Signal receivers removed - apps should implement their own handlers for indexedfile_added signal
+# Signal receivers removed - apps should implement their own handlers for
+# indexedfile_added signal
 
 
 class FilePath(models.Model):

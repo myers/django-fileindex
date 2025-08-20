@@ -6,7 +6,7 @@ A Django app for file deduplication and indexing using SHA hashes. This app help
 
 - **File Deduplication**: Uses SHA-512 hashing to identify and prevent duplicate file storage
 - **Smart File Storage**: Organizes files in a content-addressable structure
-- **Image Processing**: 
+- **Image Processing**:
   - Automatic thumbhash generation for images
   - Image dimension extraction
   - AVIF conversion for GIF files
@@ -81,7 +81,7 @@ class ImageForm(IndexedFileModelForm):
     class Meta:
         model = MyModel
         fields = ['title', 'description']
-    
+
     indexed_file_field_name = 'image'  # Field on model that stores IndexedFile
 ```
 

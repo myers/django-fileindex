@@ -28,6 +28,4 @@ class Command(BaseCommand):
             enqueue_creating_avif_from_gif(indexed_file.indexedimage)
             count += 1
 
-        self.stdout.write(
-            self.style.SUCCESS(f"Queued {count} GIF files for AVIF conversion")
-        )
+        self.stdout.write(self.style.SUCCESS(f"Queued {count} GIF files for AVIF conversion"))

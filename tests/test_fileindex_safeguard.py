@@ -1,4 +1,7 @@
-"""Test that fileindex safeguards prevent files from being created outside MEDIA_ROOT."""
+"""
+Test that fileindex safeguards prevent files from being created outside
+MEDIA_ROOT.
+"""
 
 import contextlib
 import tempfile
@@ -39,9 +42,7 @@ class FileIndexSafeguardTestCase(TestCase):
     def test_media_root_is_absolute(self):
         """Test that files are created with absolute MEDIA_ROOT path."""
         # Create an IndexedFile
-        indexed_file, created = IndexedFile.objects.get_or_create_from_file(
-            self.test_file_path
-        )
+        indexed_file, created = IndexedFile.objects.get_or_create_from_file(self.test_file_path)
 
         # The file should be in the correct location
         expected_path = Path(settings.MEDIA_ROOT) / indexed_file.path
@@ -59,9 +60,7 @@ class FileIndexSafeguardTestCase(TestCase):
     def test_relative_media_root_made_absolute(self):
         """Test that relative MEDIA_ROOT is converted to absolute."""
         # Even with relative MEDIA_ROOT, the safeguard should make it absolute
-        indexed_file, created = IndexedFile.objects.get_or_create_from_file(
-            self.test_file_path
-        )
+        indexed_file, created = IndexedFile.objects.get_or_create_from_file(self.test_file_path)
 
         # The destination should be absolute
         media_root = Path(settings.MEDIA_ROOT).resolve()
@@ -83,7 +82,8 @@ class FileIndexSafeguardTestCase(TestCase):
     def test_path_traversal_prevention(self):
         """Test that path traversal attempts are prevented."""
         # This test verifies the safeguard logic would catch malicious paths
-        # We can't easily test with actual path traversal since 'path' is a computed property
+        # We can't easily test with actual path traversal since 'path' is a
+        # computed property
         # But we can verify the safeguard logic is in place
 
         # The safeguard is in get_or_create_with_filepath_nfo
@@ -91,9 +91,7 @@ class FileIndexSafeguardTestCase(TestCase):
         media_root = Path(settings.MEDIA_ROOT).resolve()
 
         # Create a test IndexedFile
-        indexed_file, created = IndexedFile.objects.get_or_create_from_file(
-            self.test_file_path
-        )
+        indexed_file, created = IndexedFile.objects.get_or_create_from_file(self.test_file_path)
 
         # Verify the file was created in the right place
         dest_path = media_root / indexed_file.path

@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.urls import reverse
 from django.utils.html import format_html
 
 from .models import FilePath, IndexedFile
@@ -38,8 +37,6 @@ class FilePathInline(admin.TabularInline):
 
     def has_delete_permission(self, request, obj=None):
         return False
-
-
 
 
 class DerivedFileInline(admin.TabularInline):
@@ -105,9 +102,7 @@ class IndexedFileAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Optimize queryset to reduce database queries."""
         qs = super().get_queryset(request)
-        return qs.select_related("derived_from").prefetch_related(
-            "derived_files", "filepath_set"
-        )
+        return qs.select_related("derived_from").prefetch_related("derived_files", "filepath_set")
 
     def get_readonly_fields(self, request, obj=None):
         # Make ALL fields readonly for this admin
@@ -134,24 +129,16 @@ class IndexedFileAdmin(admin.ModelAdmin):
 
     def corrupt_status(self, obj):
         if obj.corrupt is True:
-            return format_html(
-                '<span class="corrupt-status corrupt-status--error">CORRUPT</span>'
-            )
+            return format_html('<span class="corrupt-status corrupt-status--error">CORRUPT</span>')
         elif obj.corrupt is False:
-            return format_html(
-                '<span class="corrupt-status corrupt-status--success">OK</span>'
-            )
-        return format_html(
-            '<span class="corrupt-status corrupt-status--warning">Unknown</span>'
-        )
+            return format_html('<span class="corrupt-status corrupt-status--success">OK</span>')
+        return format_html('<span class="corrupt-status corrupt-status--warning">Unknown</span>')
 
     corrupt_status.short_description = "Status"
 
     def file_url(self, obj):
         if obj.file:
-            return format_html(
-                '<a href="{}" target="_blank">{}</a>', obj.url, obj.file.name
-            )
+            return format_html('<a href="{}" target="_blank">{}</a>', obj.url, obj.file.name)
         return "-"
 
     file_url.short_description = "File URL"

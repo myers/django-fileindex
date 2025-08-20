@@ -107,7 +107,9 @@ class ImageFileFactory(IndexedFileFactory):
             image = ImageFileFactory.create_with_actual_file()
 
             # Create a custom sized image
-            image = ImageFileFactory.create_with_actual_file(width=800, height=600, color="red")
+            image = ImageFileFactory.create_with_actual_file(
+                width=800, height=600, color="red"
+            )
         """
         with temporary_test_file("", suffix=".png") as temp_path:
             create_test_image_file(temp_path, width, height, color)

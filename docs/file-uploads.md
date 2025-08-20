@@ -19,7 +19,7 @@ class DocumentUploadForm(forms.Form):
         max_file_size=10 * 1024 * 1024,  # 10MB
         required=True
     )
-    
+
     def save(self):
         # The field returns an IndexedFile instance
         indexed_file = self.cleaned_data['document']
@@ -39,11 +39,11 @@ class DocumentForm(IndexedFileModelForm):
     class Meta:
         model = Document
         fields = ['title', 'description']
-    
+
     # Specify which field on the model stores the IndexedFile
     indexed_file_field_name = 'file'
     upload_field_name = 'upload_file'  # The form field name
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Customize the upload field if needed
@@ -104,7 +104,7 @@ class ProductImageForm(IndexedFileUploadMixin, forms.ModelForm):
     class Meta:
         model = ProductImage
         fields = ['alt_text', 'caption']
-    
+
     indexed_file_field_name = 'image'  # Model field that stores IndexedFile
     upload_field_name = 'image_upload'  # Form field for upload
     upload_path_prefix = 'products/images/temp'
@@ -119,10 +119,10 @@ from fileindex import MultipleIndexedFilesFormMixin
 
 class BatchUploadForm(MultipleIndexedFilesFormMixin, forms.Form):
     category = forms.CharField(max_length=100)
-    
+
     multiple_files_field_name = 'files'
     upload_path_prefix = 'batch/temp'
-    
+
     def save_indexed_files(self, indexed_files):
         # Custom logic to handle the uploaded files
         for indexed_file in indexed_files:
@@ -194,8 +194,8 @@ from fileindex import get_upload_path_for_model
 class Document(models.Model):
     def upload_to(self, filename):
         return get_upload_path_for_model(
-            self, 
-            filename, 
+            self,
+            filename,
             base_path='documents'
         )
         # Returns: 'documents/app_label/document/123/filename.pdf'
@@ -212,20 +212,20 @@ from fileindex import IndexedFileField
 class DocumentInline(admin.StackedInline):
     model = Document
     extra = 1
-    
+
     def get_formset(self, request, obj=None, **kwargs):
         from django import forms
-        
+
         class DocumentForm(forms.ModelForm):
             upload = IndexedFileField(
                 allowed_extensions=['.pdf'],
                 max_file_size=10 * 1024 * 1024
             )
-            
+
             class Meta:
                 model = Document
                 fields = ['title']
-            
+
             def save(self, commit=True):
                 instance = super().save(commit=False)
                 if self.cleaned_data.get('upload'):
@@ -233,7 +233,7 @@ class DocumentInline(admin.StackedInline):
                 if commit:
                     instance.save()
                 return instance
-        
+
         kwargs['form'] = DocumentForm
         return super().get_formset(request, obj, **kwargs)
 ```
@@ -247,7 +247,7 @@ from fileindex import IndexedFileField, validate_image_upload
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 1
-    
+
     def get_formset(self, request, obj=None, **kwargs):
         class ProductImageForm(forms.ModelForm):
             image_upload = IndexedFileField(
@@ -256,11 +256,11 @@ class ProductImageInline(admin.TabularInline):
                 max_file_size=5 * 1024 * 1024,
                 required=False
             )
-            
+
             class Meta:
                 model = ProductImage
                 fields = ['alt_text', 'is_primary']
-            
+
             def clean_image_upload(self):
                 file = self.cleaned_data.get('image_upload')
                 if file:
@@ -271,7 +271,7 @@ class ProductImageInline(admin.TabularInline):
                         max_dimensions=(4000, 4000)
                     )
                 return file
-            
+
             def save(self, commit=True):
                 instance = super().save(commit=False)
                 if self.cleaned_data.get('image_upload'):
@@ -279,7 +279,7 @@ class ProductImageInline(admin.TabularInline):
                 if commit:
                     instance.save()
                 return instance
-        
+
         kwargs['form'] = ProductImageForm
         return super().get_formset(request, obj, **kwargs)
 ```

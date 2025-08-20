@@ -31,7 +31,7 @@ class WatchEventHandler(FileSystemEventHandler):
 
 
 class Command(BaseCommand):
-    help = "Move and import all supported files from a set of paths.  Watches for new files that are added."
+    help = "Move and import all supported files from a set of paths. Watches for new files that are added."
 
     def add_arguments(self, parser):
         parser.add_argument("paths", nargs="+")
@@ -43,9 +43,7 @@ class Command(BaseCommand):
             root_logger.setLevel(logging.DEBUG)
 
     def handle(self, *args, **options):
-        assert os.path.exists(settings.MEDIA_ROOT), (
-            f"MEDIA_ROOT does not exists: {settings.MEDIA_ROOT!r}"
-        )
+        assert os.path.exists(settings.MEDIA_ROOT), f"MEDIA_ROOT does not exists: {settings.MEDIA_ROOT!r}"
 
         self.setup_logger(options)
         observer = self.setup_watcher(*args, **options)
@@ -78,9 +76,7 @@ class Command(BaseCommand):
             return False
         print(f"importing {filepath!r}...", end="", flush=True)
         try:
-            indexed_file, created = IndexedFile.objects.get_or_create_from_file(
-                filepath
-            )
+            indexed_file, created = IndexedFile.objects.get_or_create_from_file(filepath)
         except Exception as ee:
             print(f"Error while importing: {ee!r}")
             return False

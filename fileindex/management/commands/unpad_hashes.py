@@ -27,9 +27,7 @@ class Command(BaseCommand):
         self.batch_size = options["batch_size"]
 
         # Find all files with padded hashes
-        padded_files = IndexedFile.objects.filter(
-            sha1__endswith="="
-        ) | IndexedFile.objects.filter(sha512__endswith="=")
+        padded_files = IndexedFile.objects.filter(sha1__endswith="=") | IndexedFile.objects.filter(sha512__endswith="=")
         total_files = padded_files.distinct().count()
 
         if total_files == 0:
@@ -72,15 +70,11 @@ class Command(BaseCommand):
         self.stdout.write(f"\nSuccessfully updated: {updated_count} files")
 
         if errors:
-            self.stdout.write(
-                self.style.ERROR(f"{len(errors)} errors occurred during update")
-            )
+            self.stdout.write(self.style.ERROR(f"{len(errors)} errors occurred during update"))
             for error in errors[:10]:  # Show first 10 errors
                 self.stdout.write(self.style.ERROR(error))
             if len(errors) > 10:
-                self.stdout.write(
-                    self.style.ERROR(f"... and {len(errors) - 10} more errors")
-                )
+                self.stdout.write(self.style.ERROR(f"... and {len(errors) - 10} more errors"))
         else:
             self.stdout.write(self.style.SUCCESS("All hashes successfully unpadded!"))
 
@@ -101,11 +95,7 @@ class Command(BaseCommand):
                             new_sha1 = old_sha1.rstrip("=")
 
                             # Check for SHA1 conflicts
-                            if (
-                                IndexedFile.objects.filter(sha1=new_sha1)
-                                .exclude(id=file_obj.id)
-                                .exists()
-                            ):
+                            if IndexedFile.objects.filter(sha1=new_sha1).exclude(id=file_obj.id).exists():
                                 errors.append(
                                     f"SHA1 conflict: File ID {file_obj.id} would create duplicate "
                                     f"hash {new_sha1} (from {old_sha1})"
@@ -121,11 +111,7 @@ class Command(BaseCommand):
                             new_sha512 = old_sha512.rstrip("=")
 
                             # Check for SHA512 conflicts
-                            if (
-                                IndexedFile.objects.filter(sha512=new_sha512)
-                                .exclude(id=file_obj.id)
-                                .exists()
-                            ):
+                            if IndexedFile.objects.filter(sha512=new_sha512).exclude(id=file_obj.id).exists():
                                 errors.append(
                                     f"SHA512 conflict: File ID {file_obj.id} would create duplicate "
                                     f"hash {new_sha512} (from {old_sha512})"

@@ -1,5 +1,6 @@
 """
-Management command to fix AVIF files with incorrect MIME type and missing derived_for field.
+Management command to fix AVIF files with incorrect MIME type and missing
+derived_for field.
 
 This command:
 1. Finds IndexedFiles derived from GIFs with application/octet-stream MIME type
@@ -42,7 +43,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--fix-existing-avif",
             action="store_true",
-            help="Also fix existing AVIF files that have correct MIME type but missing derived_for",
+            help=("Also fix existing AVIF files that have correct MIME type but missing derived_for"),
         )
 
     def verify_is_avif(self, file_path):
@@ -81,9 +82,7 @@ class Command(BaseCommand):
                     "json",
                     str(file_path),
                 ]
-                result_codec = subprocess.run(
-                    cmd_codec, capture_output=True, text=True, timeout=5
-                )
+                result_codec = subprocess.run(cmd_codec, capture_output=True, text=True, timeout=5)
 
                 if result_codec.returncode == 0:
                     codec_data = json.loads(result_codec.stdout)
@@ -96,9 +95,7 @@ class Command(BaseCommand):
             return False
 
         except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception) as e:
-            self.stdout.write(
-                self.style.WARNING(f"  Could not verify {file_path}: {e}")
-            )
+            self.stdout.write(self.style.WARNING(f"  Could not verify {file_path}: {e}"))
             return False
 
     def handle(self, *args, **options):
@@ -113,13 +110,8 @@ class Command(BaseCommand):
         if fix_existing_avif:
             # Include files with correct MIME type but missing derived_for
             candidates = (
-                IndexedFile.objects.filter(
-                    derived_from__mime_type="image/gif", derived_for__isnull=True
-                )
-                .filter(
-                    models.Q(mime_type="application/octet-stream")
-                    | models.Q(mime_type="image/avif")
-                )
+                IndexedFile.objects.filter(derived_from__mime_type="image/gif", derived_for__isnull=True)
+                .filter(models.Q(mime_type="application/octet-stream") | models.Q(mime_type="image/avif"))
                 .select_related("derived_from")
             )
         else:
@@ -147,22 +139,15 @@ class Command(BaseCommand):
             file_path = Path(settings.MEDIA_ROOT) / indexed_file.file.name
 
             # Verify it's actually an AVIF file (only for octet-stream files)
-            if (
-                verify_with_ffprobe
-                and indexed_file.mime_type == "application/octet-stream"
-            ):
+            if verify_with_ffprobe and indexed_file.mime_type == "application/octet-stream":
                 if not file_path.exists():
-                    self.stdout.write(
-                        self.style.ERROR(f"  File not found: {file_path}")
-                    )
+                    self.stdout.write(self.style.ERROR(f"  File not found: {file_path}"))
                     error_count += 1
                     continue
 
                 if not self.verify_is_avif(file_path):
                     if dry_run:
-                        self.stdout.write(
-                            f"  Would skip {indexed_file.sha512[:10]}... - not verified as AVIF"
-                        )
+                        self.stdout.write(f"  Would skip {indexed_file.sha512[:10]}... - not verified as AVIF")
                     skipped_count += 1
                     continue
 
@@ -200,11 +185,7 @@ class Command(BaseCommand):
 
                 except Exception as e:
                     error_count += 1
-                    self.stdout.write(
-                        self.style.ERROR(
-                            f"  Error fixing {indexed_file.sha512[:10]}...: {e}"
-                        )
-                    )
+                    self.stdout.write(self.style.ERROR(f"  Error fixing {indexed_file.sha512[:10]}...: {e}"))
 
         # Summary
         self.stdout.write("\n" + "=" * 50)
@@ -224,9 +205,7 @@ class Command(BaseCommand):
         self.stdout.write("\n" + "=" * 50)
         self.stdout.write("Current AVIF file statistics:")
 
-        correct_avif = IndexedFile.objects.filter(
-            mime_type="image/avif", derived_for="compression"
-        ).count()
+        correct_avif = IndexedFile.objects.filter(mime_type="image/avif", derived_for="compression").count()
 
         remaining_wrong = IndexedFile.objects.filter(
             derived_from__mime_type="image/gif",

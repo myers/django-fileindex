@@ -31,7 +31,8 @@ class MigrateFileindexStructureTestCase(TestCase):
         self.temp_dir.cleanup()
 
     def create_test_file_old_structure(self, sha512, extension=".jpg"):
-        """Create a test file in the old 2-level structure with padding and extension."""
+        """Create a test file in the old 2-level structure with padding and
+        extension."""
         # Old structure: fileindex/XX/HASH=.ext
         first_two = sha512[:2]
         old_dir = self.old_fileindex_root / first_two
@@ -63,7 +64,8 @@ class MigrateFileindexStructureTestCase(TestCase):
         return indexed_file, old_path
 
     def create_test_file_new_structure(self, sha512):
-        """Create a test file in the new 3-level structure without padding or extension."""
+        """Create a test file in the new 3-level structure without padding or
+        extension."""
         # New structure: fileindex/XX/YY/HASH (no padding, no extension)
         sha512_no_padding = sha512.rstrip("=")
         first_two = sha512_no_padding[:2]
@@ -93,12 +95,8 @@ class MigrateFileindexStructureTestCase(TestCase):
     def test_is_migrated_detection(self):
         """Test that the command correctly detects migrated vs unmigrated files."""
         # Create files in both structures
-        old_file, _ = self.create_test_file_old_structure(
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" * 3 + "ABCD"
-        )
-        new_file, _ = self.create_test_file_new_structure(
-            "ZYXWVUTSRQPONMLKJIHGFEDCBA765432" * 3 + "ZYXW"
-        )
+        old_file, _ = self.create_test_file_old_structure("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" * 3 + "ABCD")
+        new_file, _ = self.create_test_file_new_structure("ZYXWVUTSRQPONMLKJIHGFEDCBA765432" * 3 + "ZYXW")
 
         # Import and instantiate the command
         from fileindex.management.commands.migrate_fileindex_structure import Command
@@ -107,18 +105,12 @@ class MigrateFileindexStructureTestCase(TestCase):
         cmd.media_root = self.temp_media_root
 
         # Test detection
-        self.assertFalse(
-            cmd.is_migrated(old_file), "Old structure file detected as migrated"
-        )
-        self.assertTrue(
-            cmd.is_migrated(new_file), "New structure file not detected as migrated"
-        )
+        self.assertFalse(cmd.is_migrated(old_file), "Old structure file detected as migrated")
+        self.assertTrue(cmd.is_migrated(new_file), "New structure file not detected as migrated")
 
     def test_calculate_new_path(self):
         """Test that new paths are calculated correctly."""
-        indexed_file, _ = self.create_test_file_old_structure(
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" * 3 + "ABCD"
-        )
+        indexed_file, _ = self.create_test_file_old_structure("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" * 3 + "ABCD")
 
         from fileindex.management.commands.migrate_fileindex_structure import Command
 
@@ -131,9 +123,7 @@ class MigrateFileindexStructureTestCase(TestCase):
 
     def test_dry_run_mode(self):
         """Test that dry-run mode doesn't make changes."""
-        indexed_file, old_path = self.create_test_file_old_structure(
-            "TESTDRYRUNHASH" + "A" * 90
-        )
+        indexed_file, old_path = self.create_test_file_old_structure("TESTDRYRUNHASH" + "A" * 90)
 
         out = StringIO()
         with patch("django.conf.settings.MEDIA_ROOT", str(self.temp_media_root)):
@@ -200,9 +190,7 @@ class MigrateFileindexStructureTestCase(TestCase):
 
             # New file should exist
             new_abs_path = self.temp_media_root / new_rel_path
-            self.assertTrue(
-                new_abs_path.exists(), f"New file doesn't exist: {new_abs_path}"
-            )
+            self.assertTrue(new_abs_path.exists(), f"New file doesn't exist: {new_abs_path}")
 
             # Content should be preserved
             self.assertEqual(new_abs_path.read_text(), "test content")
@@ -266,9 +254,7 @@ class MigrateFileindexStructureTestCase(TestCase):
     def test_migration_directory_structure(self):
         """Test that migration creates correct directory structure."""
         # Create a file and migrate it
-        indexed_file, old_path = self.create_test_file_old_structure(
-            "DIRTEST" + "A" * 97
-        )
+        indexed_file, old_path = self.create_test_file_old_structure("DIRTEST" + "A" * 97)
 
         out = StringIO()
         with (
@@ -343,5 +329,6 @@ class MigrateFileindexStructureTestCase(TestCase):
 
         output = out.getvalue()
         self.assertIn("File not found", output)
-        # With the new approach, we don't say "No files to migrate" if there are files in DB
+        # With the new approach, we don't say "No files to migrate" if there
+        # are files in DB
         self.assertIn("Migrated: 0 files", output)

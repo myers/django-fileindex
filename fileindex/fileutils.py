@@ -85,9 +85,7 @@ def smartadd(src, dst, only_hard_link=False):
         return smartlink(src, dst)
 
     if only_hard_link:
-        raise CannotHardLinkError(
-            f"{src} and {dst} not on the same filesystem, cannot hardlink"
-        )
+        raise CannotHardLinkError(f"{src} and {dst} not on the same filesystem, cannot hardlink")
     return smartcopy(src, dst)
 
 
@@ -97,9 +95,7 @@ def smartcopy(src, dst):
     dst_path = Path(dst)
     assert src_path.exists()
     if dst_path.exists():
-        assert same_contents(src, dst), (
-            f"These two files should be the same, but are not {src!r} vs {dst!r}"
-        )
+        assert same_contents(src, dst), f"These two files should be the same, but are not {src!r} vs {dst!r}"
         return False
     dst_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
@@ -114,9 +110,7 @@ def summary_of_file(filepath):
     size = path.stat().st_size
 
     hashs = hash_file(filepath)
-    print(
-        f"{filepath} has this at the beginning {first_20_bytes!r} and is {size} bytes big, and hashs {hashs!r}"
-    )
+    print(f"{filepath} has this at the beginning {first_20_bytes!r} and is {size} bytes big, and hashs {hashs!r}")
 
 
 def same_contents(file1, file2):
@@ -134,15 +128,14 @@ def smartlink(src, dst):
     dst_path = Path(dst)
     assert src_path.exists()
     if dst_path.exists():
-        assert same_contents(src, dst), (
-            f"These two files should be the same, but are not {src!r} vs {dst!r}"
-        )
+        assert same_contents(src, dst), f"These two files should be the same, but are not {src!r} vs {dst!r}"
         logger.debug(
             f"src {src!r} is the same as dst {dst!r}, unlinking src, and adding a hardlink at src that points to dest"
         )
 
         src_path.unlink()
-        # we want to link the dst to the src, as the dst might have many other hard links
+        # we want to link the dst to the src, as the dst might have many other
+        # hard links
         src_path.hardlink_to(dst_path)
         return
     dst_path.parent.mkdir(parents=True, exist_ok=True)

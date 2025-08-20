@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-fileindex"
-version = "0.4.2"
+version = "0.5.0"
 description = "A Django app for file deduplication and indexing using SHA hashes"
 readme = "README.md"
 authors = [
@@ -79,8 +79,10 @@ markers = [
 ]
 
 [tool.ruff]
-line-length = 88
-target-version = "py310"
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -89,7 +91,3 @@ select = [
     "B",  # flake8-bugbear
     "UP", # pyupgrade
 ]
-
-[tool.black]
-line-length = 88
-target-version = ["py310", "py311", "py312"]

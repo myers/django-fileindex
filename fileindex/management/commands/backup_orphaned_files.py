@@ -1,5 +1,6 @@
 """
-Django management command to backup orphaned files from media/fileindex to backups/fileindex.
+Django management command to backup orphaned files from media/fileindex to
+backups/fileindex.
 Orphaned files are those present in the filesystem but not tracked in the database.
 """
 
@@ -36,9 +37,7 @@ class Command(BaseCommand):
         self.backup_dir = Path(settings.BASE_DIR) / "backups" / "fileindex"
 
         if self.dry_run:
-            self.stdout.write(
-                self.style.WARNING("DRY RUN MODE - No changes will be made")
-            )
+            self.stdout.write(self.style.WARNING("DRY RUN MODE - No changes will be made"))
 
         # Get all tracked file paths from database
         tracked_paths = self.get_tracked_paths()
@@ -79,9 +78,7 @@ class Command(BaseCommand):
         orphaned_files = []
 
         if not self.fileindex_dir.exists():
-            self.stdout.write(
-                self.style.WARNING(f"Directory does not exist: {self.fileindex_dir}")
-            )
+            self.stdout.write(self.style.WARNING(f"Directory does not exist: {self.fileindex_dir}"))
             return orphaned_files
 
         # Walk through all files in fileindex directory
@@ -92,9 +89,7 @@ class Command(BaseCommand):
                 orphaned_files.append(file_path)
 
                 if self.limit and len(orphaned_files) >= self.limit:
-                    self.stdout.write(
-                        self.style.WARNING(f"Limiting to {self.limit} files")
-                    )
+                    self.stdout.write(self.style.WARNING(f"Limiting to {self.limit} files"))
                     break
 
         return orphaned_files
@@ -103,9 +98,7 @@ class Command(BaseCommand):
         """Move orphaned files to backup directory"""
         errors = []
 
-        with tqdm(
-            total=len(orphaned_files), desc="Backing up files", unit="file"
-        ) as pbar:
+        with tqdm(total=len(orphaned_files), desc="Backing up files", unit="file") as pbar:
             for file_path in orphaned_files:
                 try:
                     self.backup_single_file(file_path)
@@ -116,9 +109,7 @@ class Command(BaseCommand):
                     errors.append(error_msg)
 
         if errors:
-            self.stdout.write(
-                self.style.ERROR(f"\n{len(errors)} errors occurred during backup")
-            )
+            self.stdout.write(self.style.ERROR(f"\n{len(errors)} errors occurred during backup"))
             for error in errors[:10]:  # Show first 10 errors
                 self.stdout.write(self.style.ERROR(error))
             if len(errors) > 10:

@@ -32,7 +32,8 @@ class SubprocessTimeoutTestCase(TestCase):
 
     @patch("subprocess.run")
     def test_extract_video_metadata_with_timeout(self, mock_run):
-        """Test that MediaAnalysisService.extract_video_metadata uses timeout for ffprobe."""
+        """Test that MediaAnalysisService.extract_video_metadata uses timeout
+        for ffprobe."""
         # Mock subprocess.run
         mock_result = MagicMock()
         mock_result.stdout = """{
@@ -65,7 +66,8 @@ class SubprocessTimeoutTestCase(TestCase):
 
     @patch("subprocess.run")
     def test_generate_thumbnail_with_timeout(self, mock_run):
-        """Test that MediaAnalysisService.generate_video_thumbnail uses timeout for ffmpeg."""
+        """Test that MediaAnalysisService.generate_video_thumbnail uses timeout
+        for ffmpeg."""
         # Mock subprocess.run for ffmpeg
         mock_result = MagicMock()
         mock_result.returncode = 0
@@ -79,9 +81,7 @@ class SubprocessTimeoutTestCase(TestCase):
             mock_temp.return_value.__enter__.return_value.name = "/tmp/test.jpg"
 
             # Call generate_video_thumbnail directly on service
-            thumbnail_path = media_analysis.generate_video_thumbnail(
-                "/path/to/test.mp4"
-            )
+            thumbnail_path = media_analysis.generate_video_thumbnail("/path/to/test.mp4")
 
         # Verify subprocess.run was called with timeout
         mock_run.assert_called_once()

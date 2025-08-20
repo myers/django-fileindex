@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = []
@@ -27,9 +26,7 @@ class Migration(migrations.Migration):
                 ("sha1", models.CharField(db_index=True, max_length=255, null=True)),
                 (
                     "sha512",
-                    models.CharField(
-                        db_index=True, max_length=255, null=True, unique=True
-                    ),
+                    models.CharField(db_index=True, max_length=255, null=True, unique=True),
                 ),
                 (
                     "mime_type",
@@ -120,9 +117,7 @@ class Migration(migrations.Migration):
                         _connector="OR",
                         _negated=True,
                     ),
-                    models.Q(
-                        ("metadata__has_key", "width"), ("metadata__has_key", "height")
-                    ),
+                    models.Q(("metadata__has_key", "width"), ("metadata__has_key", "height")),
                     _connector="OR",
                 ),
                 name="visual_media_requires_dimensions",

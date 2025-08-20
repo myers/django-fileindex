@@ -1,4 +1,7 @@
-"""Service functions for media file analysis using external tools like ffprobe and ffmpeg."""
+"""
+Service functions for media file analysis using external tools like ffprobe
+and ffmpeg.
+"""
 
 import contextlib
 import json
@@ -92,9 +95,7 @@ def extract_video_metadata(file_path: str) -> dict[str, float | int | None]:
     """
     data = _run_ffprobe(file_path)
     if not data:
-        raise ValueError(
-            f"Could not extract video metadata from {file_path}: ffprobe failed"
-        )
+        raise ValueError(f"Could not extract video metadata from {file_path}: ffprobe failed")
 
     metadata = {}
 
@@ -133,9 +134,7 @@ def extract_video_metadata(file_path: str) -> dict[str, float | int | None]:
     return metadata
 
 
-def generate_video_thumbnail(
-    video_path: str, seek_time: str = "00:00:00.5"
-) -> str | None:
+def generate_video_thumbnail(video_path: str, seek_time: str = "00:00:00.5") -> str | None:
     """Generate thumbnail from video using ffmpeg.
 
     Args:
@@ -195,9 +194,7 @@ def extract_audio_metadata(file_path: str) -> dict[str, float | int | str | None
     """
     data = _run_ffprobe(file_path)
     if not data:
-        raise ValueError(
-            f"Could not extract audio metadata from {file_path}: ffprobe failed"
-        )
+        raise ValueError(f"Could not extract audio metadata from {file_path}: ffprobe failed")
 
     metadata = {}
 
@@ -300,8 +297,6 @@ def extract_image_dimensions(file_path: str) -> tuple[int, int]:
         return dimensions
 
     # Both methods failed - raise exception to trigger corrupt flag
-    error_msg = (
-        f"Could not extract image dimensions from {file_path} using Pillow or ffprobe"
-    )
+    error_msg = f"Could not extract image dimensions from {file_path} using Pillow or ffprobe"
     logger.error(error_msg)
     raise ValueError(error_msg)

@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = (
-        "Retry metadata extraction for images missing dimensions or with corrupt flag"
-    )
+    help = "Retry metadata extraction for images missing dimensions or with corrupt flag"
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -65,16 +63,10 @@ class Command(BaseCommand):
             query = Q(width__isnull=True) | Q(height__isnull=True)
         else:
             # Both corrupt and missing dimensions
-            query = (
-                Q(indexedfile__corrupt=True)
-                | Q(width__isnull=True)
-                | Q(height__isnull=True)
-            )
+            query = Q(indexedfile__corrupt=True) | Q(width__isnull=True) | Q(height__isnull=True)
 
         # Get images that need processing
-        images_to_process = IndexedImage.objects.filter(query).select_related(
-            "indexedfile"
-        )
+        images_to_process = IndexedImage.objects.filter(query).select_related("indexedfile")
 
         if limit:
             images_to_process = images_to_process[:limit]
@@ -95,14 +87,11 @@ class Command(BaseCommand):
             if img.width is None or img.height is None:
                 status.append("missing dimensions")
             self.stdout.write(
-                f"  - {img.indexedfile.sha512[:10]}... "
-                f"({img.indexedfile.mime_type}) - {', '.join(status)}"
+                f"  - {img.indexedfile.sha512[:10]}... ({img.indexedfile.mime_type}) - {', '.join(status)}"
             )
 
         if dry_run:
-            self.stdout.write(
-                self.style.WARNING(f"\nDRY RUN: Would process {total_count} images")
-            )
+            self.stdout.write(self.style.WARNING(f"\nDRY RUN: Would process {total_count} images"))
             return
 
         # Process images
@@ -156,29 +145,19 @@ class Command(BaseCommand):
                     img.indexedfile.corrupt = True
                     img.indexedfile.save(update_fields=["corrupt"])
 
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"  ✗ Failed {img.indexedfile.sha512[:10]}...: {str(e)[:50]}"
-                    )
-                )
+                self.stdout.write(self.style.ERROR(f"  ✗ Failed {img.indexedfile.sha512[:10]}...: {str(e)[:50]}"))
 
         # Summary
         self.stdout.write("\n" + "=" * 50)
-        self.stdout.write(
-            self.style.SUCCESS(f"Successfully processed: {success_count}")
-        )
+        self.stdout.write(self.style.SUCCESS(f"Successfully processed: {success_count}"))
         if success_count > 0:
             self.stdout.write(f"  - Pillow succeeded: ~{pillow_success}")
             self.stdout.write(f"  - FFprobe succeeded: ~{ffprobe_success}")
         self.stdout.write(self.style.ERROR(f"Failed: {failed_count}"))
 
         # Check remaining issues
-        remaining_corrupt = IndexedFile.objects.filter(
-            corrupt=True, mime_type__startswith="image/"
-        ).count()
-        remaining_missing = IndexedImage.objects.filter(
-            Q(width__isnull=True) | Q(height__isnull=True)
-        ).count()
+        remaining_corrupt = IndexedFile.objects.filter(corrupt=True, mime_type__startswith="image/").count()
+        remaining_missing = IndexedImage.objects.filter(Q(width__isnull=True) | Q(height__isnull=True)).count()
 
         if remaining_corrupt > 0 or remaining_missing > 0:
             self.stdout.write("\nRemaining issues:")

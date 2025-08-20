@@ -1,5 +1,5 @@
-from django.urls import path, include
+from django.urls import include, path
 
 urlpatterns = [
-    path('fileindex/', include('fileindex.urls')),
+    path("fileindex/", include("fileindex.urls")),
 ]

@@ -43,9 +43,7 @@ class Command(BaseCommand):
             return False
         print(f"importing {filepath!r}...")
         try:
-            IndexedFile.objects.get_or_create_from_file(
-                filepath, only_hard_link=options["only_hard_links"]
-            )
+            IndexedFile.objects.get_or_create_from_file(filepath, only_hard_link=options["only_hard_links"])
         except Exception as ee:
             self.errors[filepath] = str(ee)
             print(f"holy cats an error {ee!r}")

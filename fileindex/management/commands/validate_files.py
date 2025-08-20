@@ -50,10 +50,7 @@ class Command(BaseCommand):
                 mime_type = result.stdout.strip()
 
                 # Handle special cases where file command detects differently
-                if (
-                    "image/avif" in result.stdout.lower()
-                    or "avif" in result.stdout.lower()
-                ):
+                if "image/avif" in result.stdout.lower() or "avif" in result.stdout.lower():
                     return "image/avif"
 
                 return mime_type
@@ -89,9 +86,7 @@ class Command(BaseCommand):
         limit = options["limit"]
         include_derived = options["include_derived"]
 
-        self.stdout.write(
-            self.style.WARNING(f"Running in {'FIX' if fix_mode else 'CHECK'} mode")
-        )
+        self.stdout.write(self.style.WARNING(f"Running in {'FIX' if fix_mode else 'CHECK'} mode"))
 
         # Get all indexed files
         queryset = IndexedFile.objects.all()
@@ -172,20 +167,14 @@ class Command(BaseCommand):
             for issue in issues_found[:10]:  # Show first 10
                 if isinstance(issue, dict) and "issue" in issue:
                     if issue["issue"] == "missing_file":
-                        self.stdout.write(
-                            self.style.ERROR(f"  Missing: {issue['path']}")
-                        )
+                        self.stdout.write(self.style.ERROR(f"  Missing: {issue['path']}"))
                 else:
                     self.stdout.write(f"\n  File ID: {issue['id']}")
                     self.stdout.write(f"    SHA512: {issue['sha512'][:20]}...")
                     if issue["db_mime_mismatch"]:
-                        self.stdout.write(
-                            f"    MIME: {issue['db_mime']} -> {issue['actual_mime']}"
-                        )
+                        self.stdout.write(f"    MIME: {issue['db_mime']} -> {issue['actual_mime']}")
                     if issue["ext_mismatch"]:
-                        self.stdout.write(
-                            f"    Extension: {issue['current_ext']} -> {issue['expected_ext']}"
-                        )
+                        self.stdout.write(f"    Extension: {issue['current_ext']} -> {issue['expected_ext']}")
 
             if len(issues_found) > 10:
                 self.stdout.write(f"\n  ... and {len(issues_found) - 10} more")
@@ -218,13 +207,8 @@ class Command(BaseCommand):
             indexed_file.save()
 
             self.stdout.write(
-                self.style.SUCCESS(
-                    f"  Fixed: {indexed_file.sha512[:20]}... "
-                    f"(MIME: {actual_mime}, ext: {expected_ext})"
-                )
+                self.style.SUCCESS(f"  Fixed: {indexed_file.sha512[:20]}... (MIME: {actual_mime}, ext: {expected_ext})")
             )
 
         except Exception as e:
-            self.stdout.write(
-                self.style.ERROR(f"  Error fixing {indexed_file.sha512[:20]}...: {e}")
-            )
+            self.stdout.write(self.style.ERROR(f"  Error fixing {indexed_file.sha512[:20]}...: {e}"))

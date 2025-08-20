@@ -47,9 +47,7 @@ class Command(BaseCommand):
             return self.verify_migration()
 
         if self.dry_run:
-            self.stdout.write(
-                self.style.WARNING("DRY RUN MODE - No changes will be made")
-            )
+            self.stdout.write(self.style.WARNING("DRY RUN MODE - No changes will be made"))
 
         # Get total count of files (fast query)
         total_files = IndexedFile.objects.count()
@@ -160,9 +158,7 @@ class Command(BaseCommand):
                                 self.migrate_single_file(file_to_migrate)
                                 migrated += 1
                             except Exception as e:
-                                error_msg = (
-                                    f"Failed to migrate file {file_to_migrate.id}: {e}"
-                                )
+                                error_msg = f"Failed to migrate file {file_to_migrate.id}: {e}"
                                 pbar.write(self.style.ERROR(error_msg))
                                 errors.append(error_msg)
                 else:
@@ -178,15 +174,11 @@ class Command(BaseCommand):
         self.stdout.write(f"Skipped (already migrated): {skipped} files")
 
         if errors:
-            self.stdout.write(
-                self.style.ERROR(f"{len(errors)} errors occurred during migration")
-            )
+            self.stdout.write(self.style.ERROR(f"{len(errors)} errors occurred during migration"))
             for error in errors[:10]:  # Show first 10 errors
                 self.stdout.write(self.style.ERROR(error))
             if len(errors) > 10:
-                self.stdout.write(
-                    self.style.ERROR(f"... and {len(errors) - 10} more errors")
-                )
+                self.stdout.write(self.style.ERROR(f"... and {len(errors) - 10} more errors"))
 
     def migrate_single_file(self, indexed_file):
         """Migrate a single file"""
@@ -196,9 +188,7 @@ class Command(BaseCommand):
 
         if self.dry_run:
             # In dry run, use stdout.write instead of tqdm.write
-            self.stdout.write(
-                f"Would migrate: {indexed_file.file.name} -> {new_relative_path}"
-            )
+            self.stdout.write(f"Would migrate: {indexed_file.file.name} -> {new_relative_path}")
             return
 
         # Create new directory structure if needed
@@ -225,9 +215,7 @@ class Command(BaseCommand):
         issues = []
         total_files = IndexedFile.objects.count()
 
-        for indexed_file in tqdm(
-            IndexedFile.objects.all(), total=total_files, desc="Verifying"
-        ):
+        for indexed_file in tqdm(IndexedFile.objects.all(), total=total_files, desc="Verifying"):
             expected_path = self.media_root / indexed_file.file.name
 
             # Check file exists
@@ -246,18 +234,14 @@ class Command(BaseCommand):
             # Check 3-level structure
             parts = Path(indexed_file.file.name).parts
             if len(parts) != 4:  # fileindex/XX/YY/HASH
-                issues.append(
-                    f"Incorrect directory depth ({len(parts)}): {indexed_file.file.name}"
-                )
+                issues.append(f"Incorrect directory depth ({len(parts)}): {indexed_file.file.name}")
 
         if issues:
             self.stdout.write(self.style.ERROR(f"Found {len(issues)} issues:"))
             for issue in issues[:10]:  # Show first 10 issues
                 self.stdout.write(self.style.ERROR(f"  - {issue}"))
             if len(issues) > 10:
-                self.stdout.write(
-                    self.style.ERROR(f"  ... and {len(issues) - 10} more")
-                )
+                self.stdout.write(self.style.ERROR(f"  ... and {len(issues) - 10} more"))
             return False
         else:
             self.stdout.write(self.style.SUCCESS("All files migrated successfully"))

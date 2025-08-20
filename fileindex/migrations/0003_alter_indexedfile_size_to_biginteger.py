@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     """
     Changes the size field from IntegerField to BigIntegerField to support files larger than 2GB.
-    
+
     IntegerField max value: 2,147,483,647 (about 2.1GB)
     BigIntegerField max value: 9,223,372,036,854,775,807 (about 9 exabytes)
     """
