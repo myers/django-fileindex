@@ -6,6 +6,8 @@ from django import forms
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
+from .models import IndexedFile
+
 
 class IndexedFileUploadMixin:
     """
@@ -61,11 +63,16 @@ class IndexedFileUploadMixin:
         Create an IndexedFile from an uploaded file.
 
         Args:
-            uploaded_file: The uploaded file from the form
+            uploaded_file: The uploaded file from the form or an existing IndexedFile instance
 
         Returns:
-            IndexedFile: The created IndexedFile instance
+            IndexedFile: The created or existing IndexedFile instance
         """
+        # Handle case where uploaded_file is already an IndexedFile instance
+        # This can happen in Django admin inline formsets
+        if isinstance(uploaded_file, IndexedFile):
+            return uploaded_file
+
         # Save the file temporarily
         file_name = default_storage.save(
             f"{self.upload_path_prefix}/{uploaded_file.name}",
@@ -77,8 +84,6 @@ class IndexedFileUploadMixin:
             file_path = default_storage.path(file_name)
 
             # Create IndexedFile from the saved file
-            from .models import IndexedFile
-
             indexed_file, _ = IndexedFile.objects.get_or_create_from_file(file_path)
 
             # Delete the temporary file since IndexedFile creates its own copy

@@ -66,6 +66,12 @@ Located in fileindex/management/commands/:
 - Test database configured at port 8732 to avoid conflicts
 - Factory classes in fileindex/factories.py for test data generation
 - Fixtures in tests/utils.py for common test scenarios
+- Use functional pytest style, not class-based Django TestCase
+- Mark database tests with `@pytest.mark.django_db` decorator
+- Use Factory Boy directly in tests instead of custom fixtures when possible
+- Use plain `assert` statements instead of Django's `self.assert*` methods
+- Use `pytest.raises()` for exception testing
+- Organize tests logically with descriptive function names like `test_feature_behavior()`
 
 ## Key Implementation Details
 

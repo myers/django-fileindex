@@ -259,3 +259,38 @@ def test_indexed_file_model_form_integration():
 
     # Test that it can be instantiated and has the upload field
     assert "upload_file" in form.fields
+
+
+@pytest.mark.django_db
+def test_indexed_file_upload_mixin_handles_indexed_file_instance(mock_model_instance):
+    """Test that mixin handles IndexedFile instance correctly (formset scenario)."""
+
+    class TestForm(IndexedFileUploadMixin, forms.ModelForm):
+        upload_file = forms.FileField(required=False)
+
+        class Meta:
+            model = FileTestModel
+            fields = ["name"]
+
+        indexed_file_field_name = "indexed_file"
+        upload_field_name = "upload_file"
+
+    form = TestForm()
+    form.instance = mock_model_instance
+
+    # Create an IndexedFile instance (simulating what Django admin formsets might pass)
+    existing_indexed_file = IndexedFileFactory.build()
+    existing_indexed_file.id = 123
+    existing_indexed_file.sha512 = "abc123" * 20  # Simulate a hash
+
+    # Set the IndexedFile instance as the "uploaded file" value
+    form.cleaned_data = {"upload_file": existing_indexed_file}
+    form.save_m2m = Mock()
+
+    with patch.object(forms.ModelForm, "save", return_value=mock_model_instance):
+        result = form.save(commit=True)
+
+        # Should use the existing IndexedFile directly without trying to process it
+        assert result == mock_model_instance
+        assert mock_model_instance.indexed_file == existing_indexed_file
+        mock_model_instance.save.assert_called_once()
