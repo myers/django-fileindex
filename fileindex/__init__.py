@@ -3,4 +3,4 @@ Django FileIndex - A Django app for file deduplication and indexing using SHA ha
 """
 
 __version__ = "0.6.0"
-LATEST_MIGRATION = "0003_alter_indexedfile_size_to_biginteger"
+LATEST_MIGRATION = "0004_remove_indexedfile_visual_media_requires_dimensions_and_more"
