@@ -113,8 +113,8 @@ class FactoryHelpersTestCase(TestCase):
 
         # Should have proper image metadata extracted
         self.assertEqual(image_file.mime_type, "image/png")
-        self.assertEqual(image_file.metadata["width"], 300)
-        self.assertEqual(image_file.metadata["height"], 200)
-        self.assertIn("thumbhash", image_file.metadata)
+        self.assertEqual(image_file.metadata["image"]["width"], 300)
+        self.assertEqual(image_file.metadata["image"]["height"], 200)
+        self.assertIn("thumbhash", image_file.metadata["image"])
         # Should have FilePath
         self.assertEqual(image_file.filepath_set.count(), 1)

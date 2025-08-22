@@ -221,11 +221,25 @@ class IndexedFile(models.Model):
         ]
         constraints = [
             # Images and videos must have dimensions (unless corrupt)
+            # Supports both old flat structure and new nested structure
             models.CheckConstraint(
                 condition=(
                     models.Q(corrupt__isnull=False, corrupt=True)  # Only skip if explicitly corrupt=True
                     | ~(models.Q(mime_type__startswith="image/") | models.Q(mime_type__startswith="video/"))
+                    # Old flat structure (width/height at root)
                     | (models.Q(metadata__has_key="width") & models.Q(metadata__has_key="height"))
+                    # New nested structure for images
+                    | (
+                        models.Q(mime_type__startswith="image/")
+                        & models.Q(metadata__image__width__isnull=False)
+                        & models.Q(metadata__image__height__isnull=False)
+                    )
+                    # New nested structure for videos
+                    | (
+                        models.Q(mime_type__startswith="video/")
+                        & models.Q(metadata__video__width__isnull=False)
+                        & models.Q(metadata__video__height__isnull=False)
+                    )
                 ),
                 name="visual_media_requires_dimensions",
             ),
@@ -239,19 +253,27 @@ class IndexedFile(models.Model):
                 name="media_requires_duration",
             ),
             # Videos must have frame_rate (unless corrupt)
+            # Supports both old flat structure and new nested structure
             models.CheckConstraint(
                 condition=(
                     models.Q(corrupt__isnull=False, corrupt=True)  # Only skip if explicitly corrupt=True
                     | ~models.Q(mime_type__startswith="video/")
+                    # Old flat structure
                     | models.Q(metadata__has_key="frame_rate")
+                    # New nested structure
+                    | models.Q(metadata__video__frame_rate__isnull=False)
                 ),
                 name="video_requires_frame_rate",
             ),
             # Animated images must have duration (unless corrupt)
+            # Supports both old and new animated flag location
             models.CheckConstraint(
                 condition=(
                     models.Q(corrupt__isnull=False, corrupt=True)  # Only skip if explicitly corrupt=True
+                    # Old structure (animated at root)
                     | ~models.Q(metadata__animated=True)
+                    # New structure (animated under image key)
+                    | ~models.Q(metadata__image__animated=True)
                     | models.Q(metadata__has_key="duration")
                 ),
                 name="animated_requires_duration",

@@ -72,44 +72,57 @@ def _extract_image_metadata(filepath: str, mime_type: str) -> tuple[FileMetadata
     metadata: FileMetadata = {}
     is_corrupt = False
 
-    # Open image once for all operations
-    with Image.open(filepath) as img:
-        # Extract and validate dimensions (required by constraints)
-        if img.width > 0 and img.height > 0:
-            metadata["width"] = img.width
-            metadata["height"] = img.height
-        else:
-            logger.warning(f"Invalid dimensions for {filepath}: width={img.width}, height={img.height}")
-            return metadata, True
+    try:
+        # Open image once for all operations
+        with Image.open(filepath) as img:
+            image_info = {}
 
-        # Generate thumbhash
-        img_for_thumbhash = img
-        if img.mode != "RGBA":
-            img_for_thumbhash = img.convert("RGBA")
+            # Extract and validate dimensions (required by constraints)
+            if img.width > 0 and img.height > 0:
+                image_info["width"] = img.width
+                image_info["height"] = img.height
+            else:
+                logger.warning(f"Invalid dimensions for {filepath}: width={img.width}, height={img.height}")
+                return metadata, True
 
-        # Create a copy for thumbnail to avoid modifying original
-        img_thumb = img_for_thumbhash.copy()
-        img_thumb.thumbnail(THUMBHASH_MAX_SIZE, Image.Resampling.LANCZOS)
+            # Generate thumbhash
+            img_for_thumbhash = img
+            if img.mode != "RGBA":
+                img_for_thumbhash = img.convert("RGBA")
 
-        thumbhash_bytes = image_to_thumbhash(img_thumb)
-        # Handle both bytes and str return types from image_to_thumbhash
-        if isinstance(thumbhash_bytes, bytes):
-            metadata["thumbhash"] = thumbhash_bytes.hex()
-        else:
-            metadata["thumbhash"] = thumbhash_bytes
+            # Create a copy for thumbnail to avoid modifying original
+            img_thumb = img_for_thumbhash.copy()
+            img_thumb.thumbnail(THUMBHASH_MAX_SIZE, Image.Resampling.LANCZOS)
 
-    # Ensure required dimensions are present for images
-    if "width" not in metadata or "height" not in metadata:
-        logger.warning(f"Missing required dimensions for image {filepath}")
+            thumbhash_bytes = image_to_thumbhash(img_thumb)
+            # Handle both bytes and str return types from image_to_thumbhash
+            if isinstance(thumbhash_bytes, bytes):
+                image_info["thumbhash"] = thumbhash_bytes.hex()
+            else:
+                image_info["thumbhash"] = thumbhash_bytes
+
+            # Check for animation and set animated flag
+            if mime_type in ANIMATED_IMAGE_FORMATS:
+                duration_sec = media_analysis.get_duration(filepath, mime_type)
+                if duration_sec and duration_sec > 0:
+                    metadata["duration"] = int(duration_sec * SECONDS_TO_MS)
+                    image_info["animated"] = True
+                else:
+                    image_info["animated"] = False
+            else:
+                image_info["animated"] = False
+
+            # Store image info in structured format
+            metadata["image"] = image_info
+
+        # Ensure required dimensions are present for images
+        if "image" not in metadata or "width" not in metadata["image"] or "height" not in metadata["image"]:
+            logger.warning(f"Missing required dimensions for image {filepath}")
+            is_corrupt = True
+
+    except Exception as e:
+        logger.error(f"Failed to extract image metadata from {filepath}: {e}")
         is_corrupt = True
-        return metadata, is_corrupt
-
-    # Handle animated images (extract duration if animated)
-    if mime_type in ANIMATED_IMAGE_FORMATS:
-        duration_sec = media_analysis.get_duration(filepath, mime_type)
-        if duration_sec and duration_sec > 0:
-            metadata["duration"] = int(duration_sec * SECONDS_TO_MS)
-            metadata["animated"] = True
 
     return metadata, is_corrupt
 
@@ -126,31 +139,43 @@ def _extract_video_metadata(filepath: str) -> tuple[FileMetadata, bool]:
     metadata: FileMetadata = {}
     is_corrupt = False
 
-    # Extract required metadata (dimensions, duration, frame_rate)
-    video_metadata = media_analysis.extract_video_metadata(filepath)
-    if video_metadata:
-        # Validate video dimensions
-        width = video_metadata.get("width")
-        height = video_metadata.get("height")
-        if width and height and width > 0 and height > 0:
-            metadata["width"] = width
-            metadata["height"] = height
+    try:
+        video_metadata = media_analysis.extract_video_metadata(filepath)
 
-        # Validate duration
-        duration = video_metadata.get("duration")
-        if duration and duration > 0:
-            metadata["duration"] = int(duration * SECONDS_TO_MS)
+        # Check for required video stream first
+        if "video" not in video_metadata:
+            logger.warning(f"No video stream found in {filepath}")
+            return {}, True
 
-        # Validate frame rate
-        frame_rate = video_metadata.get("frame_rate")
-        if frame_rate and frame_rate > 0:
-            metadata["frame_rate"] = frame_rate
+        # Validate required video fields before copying
+        video = video_metadata["video"]
+        if not (video.get("width") and video.get("height") and video.get("width") > 0 and video.get("height") > 0):
+            logger.warning(f"Invalid video dimensions for {filepath}")
+            return {}, True
 
-    # Ensure all required fields are present for video
-    required_video_fields = ["width", "height", "duration", "frame_rate"]
-    missing_fields = [f for f in required_video_fields if f not in metadata]
-    if missing_fields:
-        logger.warning(f"Missing required metadata for video {filepath}: {missing_fields}")
+        # Frame rate is required for video
+        if not video.get("frame_rate") or video.get("frame_rate") <= 0:
+            logger.warning(f"Missing or invalid frame rate for video {filepath}")
+            return {}, True
+
+        # Check for required duration and validate it's positive
+        if "duration" not in video_metadata or video_metadata["duration"] <= 0:
+            logger.warning(f"Missing or invalid duration for video {filepath}")
+            return {}, True
+
+        # All required fields are valid, copy the metadata
+        metadata["video"] = video_metadata["video"]
+        metadata["duration"] = video_metadata["duration"]
+
+        # Copy optional fields
+        if "audio" in video_metadata:
+            metadata["audio"] = video_metadata["audio"]
+
+        if "ffprobe" in video_metadata:
+            metadata["ffprobe"] = video_metadata["ffprobe"]
+
+    except Exception as e:
+        logger.error(f"Failed to extract video metadata from {filepath}: {e}")
         is_corrupt = True
 
     return metadata, is_corrupt
@@ -168,17 +193,27 @@ def _extract_audio_metadata(filepath: str) -> tuple[FileMetadata, bool]:
     metadata: FileMetadata = {}
     is_corrupt = False
 
-    # Extract duration (required by constraints)
-    audio_metadata = media_analysis.extract_audio_metadata(filepath)
-    if audio_metadata:
-        # Validate duration is positive
-        duration = audio_metadata.get("duration")
-        if duration and duration > 0:
-            metadata["duration"] = int(duration * SECONDS_TO_MS)
+    try:
+        audio_metadata = media_analysis.extract_audio_metadata(filepath)
 
-    # Ensure required duration field is present for audio
-    if "duration" not in metadata:
-        logger.warning(f"Missing required duration metadata for audio {filepath}")
+        # Check for required duration and validate it's positive
+        if "duration" not in audio_metadata or audio_metadata["duration"] <= 0:
+            logger.warning(f"Missing or invalid duration for audio {filepath}")
+            return {}, True
+
+        # Duration is valid, copy all metadata
+        metadata["duration"] = audio_metadata["duration"]
+
+        # Copy audio info if present
+        if "audio" in audio_metadata:
+            metadata["audio"] = audio_metadata["audio"]
+
+        # Copy ffprobe data if present
+        if "ffprobe" in audio_metadata:
+            metadata["ffprobe"] = audio_metadata["ffprobe"]
+
+    except Exception as e:
+        logger.error(f"Failed to extract audio metadata from {filepath}: {e}")
         is_corrupt = True
 
     return metadata, is_corrupt

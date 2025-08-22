@@ -14,6 +14,49 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Cache for ffprobe version
+_ffprobe_version: str | None = None
+
+
+def get_ffprobe_version() -> str | None:
+    """Get the version string of ffprobe.
+
+    Returns:
+        Version string like "4.4.2-0ubuntu0.22.04.1" or None if unable to determine
+    """
+    try:
+        result = subprocess.run(["ffprobe", "-version"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            # Parse first line: "ffprobe version 4.4.2-0ubuntu0.22.04.1 ..."
+            lines = result.stdout.split("\n")
+            if lines and lines[0].startswith("ffprobe version"):
+                # Extract version from "ffprobe version X.X.X ..."
+                version_line = lines[0].replace("ffprobe version ", "")
+                # Take the first word (version number)
+                version = version_line.split(" ")[0]
+                return version
+    except FileNotFoundError:
+        logger.warning("ffprobe not found. Please install ffmpeg/ffprobe.")
+        return None
+    except subprocess.TimeoutExpired:
+        logger.warning("ffprobe version check timed out after 5 seconds")
+        return None
+    except Exception as e:
+        logger.warning(f"Could not get ffprobe version: {e}")
+    return None
+
+
+def get_cached_ffprobe_version() -> str | None:
+    """Get cached ffprobe version to avoid repeated subprocess calls.
+
+    Returns:
+        Cached version string or None
+    """
+    global _ffprobe_version
+    if _ffprobe_version is None:
+        _ffprobe_version = get_ffprobe_version()
+    return _ffprobe_version
+
 
 def _run_ffprobe(file_path: str, timeout: int = 30) -> dict[str, Any] | None:
     """Run ffprobe and return parsed JSON output.
@@ -81,14 +124,14 @@ def get_duration(file_path: str, mime_type: str) -> float | None:
         return None
 
 
-def extract_video_metadata(file_path: str) -> dict[str, float | int | None]:
+def extract_video_metadata(file_path: str) -> dict[str, Any]:
     """Extract video metadata using ffprobe.
 
     Args:
         file_path: Path to the video file
 
     Returns:
-        Dictionary with width, height, duration, and frame_rate
+        Dictionary with 'video', 'audio', 'duration', and 'ffprobe' keys
 
     Raises:
         ValueError: If video metadata cannot be extracted
@@ -99,16 +142,28 @@ def extract_video_metadata(file_path: str) -> dict[str, float | int | None]:
 
     metadata = {}
 
-    # Find video stream
+    # Find video and audio streams
     video_stream = None
+    audio_stream = None
     for stream in data.get("streams", []):
-        if stream.get("codec_type") == "video":
+        if stream.get("codec_type") == "video" and not video_stream:
             video_stream = stream
-            break
+        elif stream.get("codec_type") == "audio" and not audio_stream:
+            audio_stream = stream
 
+    # Extract video information
     if video_stream:
-        metadata["width"] = video_stream.get("width")
-        metadata["height"] = video_stream.get("height")
+        video_info = {}
+        video_info["codec"] = video_stream.get("codec_name")
+        video_info["width"] = video_stream.get("width")
+        video_info["height"] = video_stream.get("height")
+
+        # Video bitrate
+        if video_bitrate := video_stream.get("bit_rate"):
+            try:
+                video_info["bitrate"] = int(video_bitrate)
+            except (ValueError, TypeError):
+                pass
 
         # Parse frame rate
         r_frame_rate = video_stream.get("r_frame_rate", "0/1")
@@ -116,20 +171,48 @@ def extract_video_metadata(file_path: str) -> dict[str, float | int | None]:
             try:
                 num, den = r_frame_rate.split("/")
                 if int(den) != 0:
-                    metadata["frame_rate"] = float(num) / float(den)
+                    video_info["frame_rate"] = float(num) / float(den)
             except (ValueError, ZeroDivisionError):
                 pass
 
-    # Get duration from format or streams
+        metadata["video"] = video_info
+
+    # Extract audio information
+    if audio_stream:
+        audio_info = {}
+        audio_info["codec"] = audio_stream.get("codec_name")
+
+        if audio_bitrate := audio_stream.get("bit_rate"):
+            try:
+                audio_info["bitrate"] = int(audio_bitrate)
+            except (ValueError, TypeError):
+                pass
+
+        if sample_rate := audio_stream.get("sample_rate"):
+            try:
+                audio_info["sample_rate"] = int(sample_rate)
+            except (ValueError, TypeError):
+                pass
+
+        audio_info["channels"] = audio_stream.get("channels")
+
+        metadata["audio"] = audio_info
+
+    # Get duration from format or streams (convert to milliseconds)
     duration = None
     if "format" in data:
         duration = data["format"].get("duration")
     if duration is None and video_stream:
         duration = video_stream.get("duration")
+    if duration is None and audio_stream:
+        duration = audio_stream.get("duration")
 
     if duration:
         with suppress(ValueError):
-            metadata["duration"] = float(duration)
+            metadata["duration"] = float(duration) * 1000  # Convert to milliseconds
+
+    # Store complete ffprobe output with version
+    metadata["ffprobe"] = {"version": get_cached_ffprobe_version(), "data": data}
 
     return metadata
 
@@ -180,14 +263,14 @@ def generate_video_thumbnail(video_path: str, seek_time: str = "00:00:00.5") -> 
         return None
 
 
-def extract_audio_metadata(file_path: str) -> dict[str, float | int | str | None]:
+def extract_audio_metadata(file_path: str) -> dict[str, Any]:
     """Extract audio metadata using ffprobe.
 
     Args:
         file_path: Path to the audio file
 
     Returns:
-        Dictionary with duration, bitrate, sample_rate, channels, and tags
+        Dictionary with 'audio', 'duration', and 'ffprobe' keys
 
     Raises:
         ValueError: If audio metadata cannot be extracted
@@ -206,11 +289,16 @@ def extract_audio_metadata(file_path: str) -> dict[str, float | int | str | None
             break
 
     if audio_stream:
+        audio_info = {}
+        audio_info["codec"] = audio_stream.get("codec_name")
+
         # Basic audio properties
         with suppress(ValueError, TypeError):
-            metadata["sample_rate"] = int(audio_stream.get("sample_rate", 0)) or None
+            sample_rate = audio_stream.get("sample_rate")
+            if sample_rate:
+                audio_info["sample_rate"] = int(sample_rate)
 
-        metadata["channels"] = audio_stream.get("channels")
+        audio_info["channels"] = audio_stream.get("channels")
 
         # Get bitrate from stream or format
         bitrate = audio_stream.get("bit_rate")
@@ -218,21 +306,35 @@ def extract_audio_metadata(file_path: str) -> dict[str, float | int | str | None
             bitrate = data["format"].get("bit_rate")
         if bitrate:
             with suppress(ValueError, TypeError):
-                metadata["bitrate"] = int(bitrate)
+                audio_info["bitrate"] = int(bitrate)
 
-    # Get duration from format
+        metadata["audio"] = audio_info
+
+    # Get duration from format (convert to milliseconds)
     if "format" in data:
         duration = data["format"].get("duration")
         if duration:
             with suppress(ValueError, TypeError):
-                metadata["duration"] = float(duration)
+                metadata["duration"] = float(duration) * 1000  # Convert to milliseconds
 
         # Extract metadata tags (title, artist, album)
         tags = data["format"].get("tags", {})
-        # Handle different tag name cases
-        metadata["title"] = tags.get("title") or tags.get("TITLE")
-        metadata["artist"] = tags.get("artist") or tags.get("ARTIST")
-        metadata["album"] = tags.get("album") or tags.get("ALBUM")
+        if tags:
+            audio_tags = {}
+            # Handle different tag name cases
+            if title := tags.get("title") or tags.get("TITLE"):
+                audio_tags["title"] = title
+            if artist := tags.get("artist") or tags.get("ARTIST"):
+                audio_tags["artist"] = artist
+            if album := tags.get("album") or tags.get("ALBUM"):
+                audio_tags["album"] = album
+
+            # Add tags to audio metadata if we have any
+            if audio_tags and "audio" in metadata:
+                metadata["audio"]["tags"] = audio_tags
+
+    # Store complete ffprobe output with version
+    metadata["ffprobe"] = {"version": get_cached_ffprobe_version(), "data": data}
 
     return metadata
 

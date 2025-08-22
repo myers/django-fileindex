@@ -12,81 +12,87 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import DetailView, ListView
-from django_rsgi.serve import serve_file as rsgi_serve_file
 
 from .models import FilePath, IndexedFile
 from .services.file_validation import should_import, should_import_filename
 
 local_tz = timezone.get_current_timezone()
 
+# Only define serve_fileindex_media if django_rsgi is available
+try:
+    from django_rsgi.serve import serve_file as rsgi_serve_file
 
-def serve_fileindex_media(request, path):
-    """
-    Serve fileindex media files with MIME type from database.
-    Handles requests to /media/fileindex/<first2>/<next2>/<sha512_hash>
-    SHA512 is stored as base32-encoded string with '=' padding in database,
-    but files are stored extensionless with padding stripped.
-    """
-    import logging
+    def serve_fileindex_media(request, path):
+        """
+        Serve fileindex media files with MIME type from database.
+        Handles requests to /media/fileindex/<first2>/<next2>/<sha512_hash>
+        SHA512 is stored as base32-encoded string with '=' padding in database,
+        but files are stored extensionless with padding stripped.
+        """
+        import logging
 
-    logger = logging.getLogger(__name__)
+        logger = logging.getLogger(__name__)
 
-    # Extract SHA512 from the path structure
-    # Files are stored as fileindex/XX/XX/XXXXXXXXX (no extension) where X is base32
-    path_parts = path.split("/")
-    logger.debug(f"serve_fileindex_media: path={path}, path_parts={path_parts}")
+        # Extract SHA512 from the path structure
+        # Files are stored as fileindex/XX/XX/XXXXXXXXX (no extension) where X is base32
+        path_parts = path.split("/")
+        logger.debug(f"serve_fileindex_media: path={path}, path_parts={path_parts}")
 
-    if len(path_parts) >= 3:
-        # The filename is the SHA512 hash without padding (extensionless)
-        filename = path_parts[-1]
-        # In case there's still an extension (legacy), remove it
-        hash_part = filename.split(".")[0]
-        logger.debug(f"serve_fileindex_media: filename={filename}, hash_part={hash_part}")
+        if len(path_parts) >= 3:
+            # The filename is the SHA512 hash without padding (extensionless)
+            filename = path_parts[-1]
+            # In case there's still an extension (legacy), remove it
+            hash_part = filename.split(".")[0]
+            logger.debug(f"serve_fileindex_media: filename={filename}, hash_part={hash_part}")
 
-        # Try to find the IndexedFile - first with the hash as-is, then with padding
-        indexed_file = None
+            # Try to find the IndexedFile - first with the hash as-is, then with padding
+            indexed_file = None
 
-        # Try exact match first (new extensionless format)
-        try:
-            indexed_file = IndexedFile.objects.get(sha512=hash_part)
-            logger.debug(f"serve_fileindex_media: found IndexedFile with exact hash={hash_part}")
-        except IndexedFile.DoesNotExist:
-            # Try with padding added (legacy format)
-            padded_hash = hash_part
-            while len(padded_hash) % 8 != 0:
-                padded_hash += "="
-
+            # Try exact match first (new extensionless format)
             try:
-                indexed_file = IndexedFile.objects.get(sha512=padded_hash)
-                logger.debug(f"serve_fileindex_media: found IndexedFile with padded hash={padded_hash}")
+                indexed_file = IndexedFile.objects.get(sha512=hash_part)
+                logger.debug(f"serve_fileindex_media: found IndexedFile with exact hash={hash_part}")
             except IndexedFile.DoesNotExist:
-                logger.warning(
-                    f"serve_fileindex_media: IndexedFile not found for hash={hash_part} or padded={padded_hash}"
+                # Try with padding added (legacy format)
+                padded_hash = hash_part
+                while len(padded_hash) % 8 != 0:
+                    padded_hash += "="
+
+                try:
+                    indexed_file = IndexedFile.objects.get(sha512=padded_hash)
+                    logger.debug(f"serve_fileindex_media: found IndexedFile with padded hash={padded_hash}")
+                except IndexedFile.DoesNotExist:
+                    logger.warning(
+                        f"serve_fileindex_media: IndexedFile not found for hash={hash_part} or padded={padded_hash}"
+                    )
+
+            if indexed_file:
+                full_path = f"fileindex/{path}"
+                response = rsgi_serve_file(
+                    request,
+                    full_path,  # Full path under MEDIA_ROOT
+                    document_root=settings.MEDIA_ROOT,
                 )
+                # Override with MIME type from database
+                if indexed_file.mime_type:
+                    response["Content-Type"] = indexed_file.mime_type
+                    logger.debug(f"serve_fileindex_media: set Content-Type to {indexed_file.mime_type}")
 
-        if indexed_file:
-            full_path = f"fileindex/{path}"
-            response = rsgi_serve_file(
-                request,
-                full_path,  # Full path under MEDIA_ROOT
-                document_root=settings.MEDIA_ROOT,
-            )
-            # Override with MIME type from database
-            if indexed_file.mime_type:
-                response["Content-Type"] = indexed_file.mime_type
-                logger.debug(f"serve_fileindex_media: set Content-Type to {indexed_file.mime_type}")
+                # Force inline display for images to prevent download
+                if indexed_file.mime_type and indexed_file.mime_type.startswith("image/"):
+                    response["Content-Disposition"] = "inline"
+                    logger.debug("serve_fileindex_media: set Content-Disposition to inline")
 
-            # Force inline display for images to prevent download
-            if indexed_file.mime_type and indexed_file.mime_type.startswith("image/"):
-                response["Content-Disposition"] = "inline"
-                logger.debug("serve_fileindex_media: set Content-Disposition to inline")
+                return response
 
-            return response
+        # Return 404 if file not found in database or path doesn't match expected structure
+        from django.http import Http404
 
-    # Return 404 if file not found in database or path doesn't match expected structure
-    from django.http import Http404
+        raise Http404("File not found")
 
-    raise Http404("File not found")
+except ImportError:
+    # django_rsgi is not available, so serve_fileindex_media won't be defined
+    pass
 
 
 @require_GET
