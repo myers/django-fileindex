@@ -188,6 +188,27 @@ open htmlcov/index.html
 uv run python -m django makemigrations fileindex --settings=tests.settings
 ```
 
+### Releasing new versions
+
+```bash
+# The release script automates version bumping and tagging
+bin/release
+
+# This will:
+# 1. Check for uncommitted changes
+# 2. Bump the patch version (e.g., 0.7.3 -> 0.7.4)
+# 3. Commit the version change
+# 4. Create an annotated git tag
+# 5. Show commands to push the release
+
+# After running bin/release, push the changes:
+git push origin main --tags
+
+# Or push separately:
+git push origin main
+git push origin v0.7.4  # Use the actual new version number
+```
+
 ## Models
 
 ### IndexedFile
