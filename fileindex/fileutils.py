@@ -2,16 +2,18 @@ import base64
 import filecmp
 import hashlib
 import logging
+import os
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
-def read_in_chunks(file_object, chunk_size=1024):
+def read_in_chunks(file_object, chunk_size=65536):
     """Lazy function (generator) to read a file piece by piece.
-    Default chunk size: 1k."""
+    Default chunk size: 64KB for better performance with large files."""
     while True:
         data = file_object.read(chunk_size)
         if not data:
@@ -19,22 +21,60 @@ def read_in_chunks(file_object, chunk_size=1024):
         yield data
 
 
-def analyze_file(filepath):
+def analyze_file(filepath, hash_progress_callback: Callable[[int, int], None] | None = None):
+    """
+    Analyze a file to extract hash, MIME type, and size information.
+
+    Args:
+        filepath: Path to the file to analyze
+        hash_progress_callback: Optional callback(bytes_processed, total_bytes) for progress updates
+
+    Returns:
+        Dictionary containing sha1, sha512, mime_type, and size
+    """
     path = Path(filepath)
-    results = hash_file(filepath)
+    results = hash_file(filepath, progress_callback=hash_progress_callback)
     results["mime_type"] = get_mime_type(filepath)
     results["size"] = path.stat().st_size
     return results
 
 
-def hash_file(filepath):
+def hash_file(filepath, progress_callback: Callable[[int, int], None] | None = None, chunk_size: int = 65536):
+    """
+    Calculate SHA1 and SHA512 hashes for a file.
+
+    Args:
+        filepath: Path to the file to hash
+        progress_callback: Optional callback(bytes_processed, total_bytes) called after each chunk.
+                          Note: Any exceptions raised by the callback will propagate and stop the
+                          hashing process. This allows callers to implement their own error handling
+                          or cancellation logic.
+        chunk_size: Size of chunks to read (default 64KB for better performance with large files)
+
+    Returns:
+        Dictionary containing sha1 and sha512 hashes (base32 encoded, padding stripped)
+
+    Raises:
+        Any exceptions from the progress_callback will propagate to the caller
+    """
     sha1 = hashlib.sha1()
     sha512 = hashlib.sha512()
 
+    # Get file size for progress reporting
+    file_size = os.path.getsize(filepath)
+    bytes_processed = 0
+
     with open(filepath, "rb") as f:
-        for piece in read_in_chunks(f):
+        for piece in read_in_chunks(f, chunk_size):
             sha1.update(piece)
             sha512.update(piece)
+
+            # Update progress if callback provided
+            # Note: Exceptions from callback will propagate (intentional for cancellation support)
+            if progress_callback:
+                bytes_processed += len(piece)
+                progress_callback(bytes_processed, file_size)
+
     return {
         "sha1": str(base64.b32encode(sha1.digest()), "ascii").rstrip("="),
         "sha512": str(base64.b32encode(sha512.digest()), "ascii").rstrip("="),

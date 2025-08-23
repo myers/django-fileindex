@@ -91,9 +91,10 @@ class IndexedFileManager(models.Manager):
         only_hard_link=False,
         derived_from=None,
         derived_for=None,
+        hash_progress_callback=None,
         **filepath_kwargs,
     ):
-        nfo = fileutils.analyze_file(filepath)
+        nfo = fileutils.analyze_file(filepath, hash_progress_callback=hash_progress_callback)
 
         # Use SHA-512 as the lookup field (should be unique)
         # Everything else goes in defaults so they're only used for creation
@@ -159,13 +160,16 @@ class IndexedFileManager(models.Manager):
 
         return indexedfile, created
 
-    def get_or_create_from_file(self, filepath, only_hard_link=False, derived_from=None, derived_for=None):
+    def get_or_create_from_file(
+        self, filepath, only_hard_link=False, derived_from=None, derived_for=None, hash_progress_callback=None
+    ):
         fp_nfo = filepath_nfo_from_file(str(filepath))
         return self.get_or_create_with_filepath_nfo(
             filepath,
             only_hard_link=only_hard_link,
             derived_from=derived_from,
             derived_for=derived_for,
+            hash_progress_callback=hash_progress_callback,
             **fp_nfo,
         )
 

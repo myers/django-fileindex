@@ -73,7 +73,9 @@ def test_create_indexed_file_from_memory_upload(simple_uploaded_file):
             assert result == mock_indexed_file
             assert created is True
             mock_storage.save.assert_called_once()
-            mock_create.assert_called_once_with("/tmp/uploads/temp/test.txt", derived_from=None, derived_for=None)
+            mock_create.assert_called_once_with(
+                "/tmp/uploads/temp/test.txt", derived_from=None, derived_for=None, hash_progress_callback=None
+            )
             # Verify temp file was cleaned up
             mock_storage.delete.assert_called_once_with("uploads/temp/test.txt")
 
@@ -92,7 +94,7 @@ def test_create_indexed_file_from_temporary_upload(temp_uploaded_file):
         assert created is False
         # Should use the temporary file path directly
         mock_create.assert_called_once_with(
-            temp_uploaded_file.temporary_file_path(), derived_from=None, derived_for=None
+            temp_uploaded_file.temporary_file_path(), derived_from=None, derived_for=None, hash_progress_callback=None
         )
 
 
@@ -116,7 +118,10 @@ def test_create_indexed_file_with_derived_from(simple_uploaded_file):
 
             assert result == mock_indexed_file
             mock_create.assert_called_once_with(
-                "/tmp/uploads/temp/test.txt", derived_from=parent_file, derived_for="thumbnail"
+                "/tmp/uploads/temp/test.txt",
+                derived_from=parent_file,
+                derived_for="thumbnail",
+                hash_progress_callback=None,
             )
 
 

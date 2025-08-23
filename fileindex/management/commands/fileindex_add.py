@@ -2,6 +2,7 @@ import logging
 import os
 
 from django.core.management.base import BaseCommand
+from tqdm import tqdm
 
 from fileindex.exceptions import ImportErrorType
 from fileindex.services.file_import import import_directory, import_file
@@ -20,6 +21,13 @@ class Command(BaseCommand):
             help="Only create hard links (no copying)",
         )
 
+        parser.add_argument(
+            "--show-hash-progress",
+            action="store_true",
+            default=False,
+            help="Show progress bar for file hashing",
+        )
+
     def setup_logger(self, options):
         verbosity = int(options["verbosity"])
         root_logger = logging.getLogger("")
@@ -29,12 +37,34 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.setup_logger(options)
         only_hard_link = options["only_hard_links"]
+        show_hash_progress = options["show_hash_progress"]
         total_stats = {
             "imported": 0,
             "created": 0,
             "skipped": 0,
             "errors": {},
         }
+
+        # Create hash progress callback if requested
+        hash_progress_callback = None
+        hash_pbar = None
+
+        if show_hash_progress:
+
+            def hash_progress_callback(bytes_processed, total_bytes):
+                nonlocal hash_pbar
+                if hash_pbar is None or hash_pbar.total != total_bytes:
+                    if hash_pbar:
+                        hash_pbar.close()
+                    hash_pbar = tqdm(
+                        total=total_bytes,
+                        unit="B",
+                        unit_scale=True,
+                        desc="Hashing",
+                        leave=False,
+                    )
+                hash_pbar.n = bytes_processed
+                hash_pbar.refresh()
 
         for path in options["paths"]:
             if os.path.isfile(path):
@@ -44,7 +74,13 @@ class Command(BaseCommand):
                     path,
                     only_hard_link=only_hard_link,
                     validate=True,
+                    hash_progress_callback=hash_progress_callback,
                 )
+
+                # Close progress bar after file is done
+                if hash_pbar:
+                    hash_pbar.close()
+                    hash_pbar = None
 
                 if error:
                     if error == ImportErrorType.VALIDATION_FAILED:
@@ -75,6 +111,7 @@ class Command(BaseCommand):
                     only_hard_link=only_hard_link,
                     validate=True,
                     progress_callback=progress_callback,
+                    hash_progress_callback=hash_progress_callback,
                 )
 
                 # Merge stats
@@ -82,6 +119,10 @@ class Command(BaseCommand):
                 total_stats["created"] += stats["created"]
                 total_stats["skipped"] += stats["skipped"]
                 total_stats["errors"].update(stats["errors"])
+
+        # Clean up any remaining progress bar
+        if hash_pbar:
+            hash_pbar.close()
 
         # Print summary
         self.stdout.write("\n" + "=" * 60)

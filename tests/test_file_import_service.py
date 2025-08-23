@@ -76,7 +76,7 @@ def test_import_file_success(temp_test_file):
             assert indexed_file == mock_indexed_file
             assert created is True
             assert error is None
-            mock_create.assert_called_once_with(temp_test_file, only_hard_link=False)
+            mock_create.assert_called_once_with(temp_test_file, only_hard_link=False, hash_progress_callback=None)
 
 
 @pytest.mark.django_db
@@ -144,7 +144,7 @@ def test_import_file_only_hard_link(temp_test_file):
             indexed_file, created, error = import_file(temp_test_file, only_hard_link=True)
 
             assert indexed_file == mock_indexed_file
-            mock_create.assert_called_once_with(temp_test_file, only_hard_link=True)
+            mock_create.assert_called_once_with(temp_test_file, only_hard_link=True, hash_progress_callback=None)
 
 
 @pytest.mark.django_db

@@ -87,11 +87,62 @@ Located in fileindex/management/commands/:
 - Metadata stored as JSON in `metadata` field
 
 ### Import Process
-1. Calculate SHA-512 hash
+1. Calculate SHA-512 hash (with optional progress callback)
 2. Check if file already indexed
 3. Copy/hard link to storage location
 4. Extract metadata based on MIME type
 5. Create FilePath entry for original location
+
+### Hash Progress Callbacks
+The library supports progress callbacks during file hashing for large files:
+
+```python
+from fileindex.models import IndexedFile
+from tqdm import tqdm
+
+# Simple progress callback
+def hash_progress(bytes_processed, total_bytes):
+    percent = (bytes_processed / total_bytes) * 100
+    print(f"Hashing: {percent:.1f}% complete")
+
+# Create IndexedFile with progress
+indexed_file, created = IndexedFile.objects.get_or_create_from_file(
+    filepath,
+    hash_progress_callback=hash_progress
+)
+
+# With tqdm progress bar
+with tqdm(total=file_size, unit='B', unit_scale=True) as pbar:
+    indexed_file, created = IndexedFile.objects.get_or_create_from_file(
+        filepath,
+        hash_progress_callback=lambda b, t: pbar.update(b - pbar.n)
+    )
+
+# Implementing cancellation via callback exception
+class HashCancelled(Exception):
+    pass
+
+def cancellable_progress(bytes_processed, total_bytes):
+    if user_cancelled:  # Check some cancellation flag
+        raise HashCancelled("User cancelled the operation")
+    update_progress_bar(bytes_processed, total_bytes)
+
+try:
+    indexed_file, created = IndexedFile.objects.get_or_create_from_file(
+        filepath,
+        hash_progress_callback=cancellable_progress
+    )
+except HashCancelled:
+    print("Operation cancelled by user")
+```
+
+**Note:** Exceptions raised in progress callbacks will propagate and stop the hashing process. This is intentional to allow for cancellation logic and custom error handling.
+
+Management command also supports progress:
+```bash
+# Show hash progress bar when importing files
+python manage.py fileindex_add /path/to/files --show-hash-progress
+```
 
 ## Dependencies
 

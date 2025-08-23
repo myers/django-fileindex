@@ -5,6 +5,7 @@ Utility functions for handling file uploads with IndexedFile integration.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -27,6 +28,7 @@ def create_indexed_file_from_upload(
     derived_from: IndexedFile | None = None,
     derived_for: str | None = None,
     cleanup_on_error: bool = True,
+    hash_progress_callback: Callable[[int, int], None] | None = None,
 ) -> tuple[IndexedFile, bool]:
     """
     Create an IndexedFile from a Django UploadedFile.
@@ -40,6 +42,7 @@ def create_indexed_file_from_upload(
         derived_from: Optional parent IndexedFile if this is a derivative
         derived_for: Optional string indicating the type of derivative
         cleanup_on_error: Whether to clean up temporary files on error
+        hash_progress_callback: Optional callback(bytes_processed, total_bytes) for hash progress
 
     Returns:
         Tuple of (IndexedFile, created) where created is True if a new file was indexed
@@ -69,7 +72,10 @@ def create_indexed_file_from_upload(
         from .models import IndexedFile
 
         indexed_file, created = IndexedFile.objects.get_or_create_from_file(
-            temp_path, derived_from=derived_from, derived_for=derived_for
+            temp_path,
+            derived_from=derived_from,
+            derived_for=derived_for,
+            hash_progress_callback=hash_progress_callback,
         )
 
         # Clean up temporary file if we created it

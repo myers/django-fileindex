@@ -22,6 +22,7 @@ def import_file(
     only_hard_link: bool = False,
     delete_after: bool = False,
     validate: bool = True,
+    hash_progress_callback: Callable[[int, int], None] | None = None,
 ) -> tuple[IndexedFile | None, bool, ImportErrorType | None]:
     """
     Import a single file into the IndexedFile system.
@@ -31,6 +32,7 @@ def import_file(
         only_hard_link: If True, only create hard links (no copying)
         delete_after: If True, delete the original file after successful import
         validate: If True, check if file should be imported using validation rules
+        hash_progress_callback: Optional callback(bytes_processed, total_bytes) for hash progress
 
     Returns:
         Tuple of (indexed_file, created, error_message)
@@ -50,7 +52,9 @@ def import_file(
 
     try:
         # Import the file
-        indexed_file, created = IndexedFile.objects.get_or_create_from_file(filepath, only_hard_link=only_hard_link)
+        indexed_file, created = IndexedFile.objects.get_or_create_from_file(
+            filepath, only_hard_link=only_hard_link, hash_progress_callback=hash_progress_callback
+        )
 
         # Delete original if requested and import was successful
         if delete_after and indexed_file:
@@ -75,6 +79,7 @@ def import_directory(
     delete_after: bool = False,
     validate: bool = True,
     progress_callback: Callable[[str, bool, str | None], None] | None = None,
+    hash_progress_callback: Callable[[int, int], None] | None = None,
 ) -> dict[str, Any]:
     """
     Import all files from a directory.
@@ -86,6 +91,7 @@ def import_directory(
         delete_after: If True, delete original files after successful import
         validate: If True, check if files should be imported using validation rules
         progress_callback: Optional callback function(filepath, success, error_msg) called for each file
+        hash_progress_callback: Optional callback(bytes_processed, total_bytes) for hash progress
 
     Returns:
         Dictionary with import statistics:
@@ -128,6 +134,7 @@ def import_directory(
                 only_hard_link=only_hard_link,
                 delete_after=delete_after,
                 validate=validate,
+                hash_progress_callback=hash_progress_callback,
             )
 
             # Update statistics
@@ -159,6 +166,7 @@ def batch_import_files(
     validate: bool = True,
     progress_callback: Callable[[str, bool, str | None], None] | None = None,
     stop_on_error: bool = False,
+    hash_progress_callback: Callable[[int, int], None] | None = None,
 ) -> dict[str, Any]:
     """
     Import multiple files in batch.
@@ -170,6 +178,7 @@ def batch_import_files(
         validate: If True, check if files should be imported using validation rules
         progress_callback: Optional callback(filepath, success, error_msg)
         stop_on_error: If True, stop processing on first error
+        hash_progress_callback: Optional callback(bytes_processed, total_bytes) for hash progress
 
     Returns:
         Dictionary with import statistics (same as import_directory)
@@ -189,6 +198,7 @@ def batch_import_files(
             only_hard_link=only_hard_link,
             delete_after=delete_after,
             validate=validate,
+            hash_progress_callback=hash_progress_callback,
         )
 
         # Update statistics
