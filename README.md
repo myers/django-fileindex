@@ -183,6 +183,9 @@ uv run pytest --cov=fileindex --cov-report=html
 
 # View coverage report
 open htmlcov/index.html
+
+# Make new migrations
+uv run python -m django makemigrations fileindex --settings=tests.settings
 ```
 
 ## Models
@@ -240,8 +243,8 @@ Located in `fileindex.watch_service`, provides:
 
 ## Requirements
 
-- Django >= 4.2
-- Python >= 3.10
+- Django >= 5.2
+- Python >= 3.11
 - Pillow >= 10.0.0
 - pillow-avif-plugin >= 1.3.0
 - thumbhash >= 0.1.0
