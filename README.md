@@ -116,6 +116,12 @@ python manage.py fileindex_watch /path/to/directory --remove-after-import
 # Create AVIF versions of GIF files
 python manage.py fileindex_create_avif_for_gif
 
+# Add MediaInfo metadata to existing files (backfill)
+python manage.py fileindex_add_mediainfo --mime-type video/quicktime
+
+# Populate missing metadata for existing files
+python manage.py fileindex_populate_missing_metadata
+
 # Run background worker for processing tasks
 python manage.py worker
 ```
@@ -242,6 +248,56 @@ Tracks all file paths that point to an indexed file:
 
 ## Services
 
+### Metadata Extraction
+
+The metadata extraction system uses multiple tools to extract comprehensive metadata:
+
+- **FFprobe**: Primary tool for video/audio analysis (ffmpeg required)
+- **MediaInfo**: Enhanced metadata extraction, especially for professional formats like DV
+- **Pillow**: Image processing and thumbnail generation
+
+#### Metadata Structure
+
+```json
+{
+  "width": 720,              // from ffprobe (trusted)
+  "height": 480,             // from ffprobe (trusted) 
+  "duration": 5000,          // from ffprobe (trusted)
+  "ffprobe": {               // complete ffprobe output
+    "version": "4.4.2",
+    "data": {...}
+  },
+  "mediainfo": {             // complete MediaInfo output (NEW)
+    "version": "21.09",
+    "tracks": [
+      {
+        "track_type": "General",
+        "recorded_date": "2004-10-04 14:43:30",  // DV recording date
+        "duration": 5000
+      },
+      {
+        "track_type": "Video",
+        "commercial_name": "DVCPRO",             // DV format
+        "timecode": "00:00:00;06",               // SMPTE timecode
+        "scan_type": "Interlaced",
+        "width": 720,
+        "height": 480
+      }
+    ]
+  }
+}
+```
+
+#### DV-Specific Metadata
+
+For DV files, MediaInfo provides critical information not available from ffprobe:
+
+- **Recording Date**: Actual date/time when footage was recorded (not file creation date)
+- **SMPTE Timecode**: Frame-accurate timecode information
+- **Commercial Format**: Specific DV variant (DVCPRO, DVCAM, MiniDV)
+- **Camera Settings**: White balance, focus mode, etc.
+- **Field Order**: Interlacing information (BFF/TFF)
+
 ### File Import Service
 
 Located in `fileindex.file_import_service`, provides:
@@ -269,8 +325,17 @@ Located in `fileindex.watch_service`, provides:
 - Pillow >= 10.0.0
 - pillow-avif-plugin >= 1.3.0
 - thumbhash >= 0.1.0
+- pymediainfo >= 6.0.0 (for enhanced metadata extraction)
 - django-pg-queue >= 0.8.0
 - django-sendfile2 >= 0.7.0
+
+### External Tools
+
+- **ffmpeg/ffprobe**: Required for video/audio metadata extraction
+- **MediaInfo**: Optional but recommended for professional video formats (DV, etc.)
+  - Linux: `apt install mediainfo`  
+  - macOS: `brew install mediainfo`
+  - Windows: Download from MediaArea website
 - watchdog >= 3.0.0
 - PostgreSQL (for django-pg-queue)
 

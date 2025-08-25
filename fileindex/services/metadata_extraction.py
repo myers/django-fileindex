@@ -6,7 +6,7 @@ from typing import Any, Final, Literal
 from PIL import Image
 from thumbhash import image_to_thumbhash
 
-from fileindex.services import media_analysis
+from fileindex.services import media_analysis, mediainfo_analysis
 
 # Type alias for metadata dictionary using Python 3.11 compatible syntax
 FileMetadata = dict[str, Any]
@@ -115,6 +115,11 @@ def _extract_image_metadata(filepath: str, mime_type: str) -> tuple[FileMetadata
             # Store image info in structured format
             metadata["image"] = image_info
 
+        # Extract MediaInfo metadata (supplemental to PIL/ffprobe)
+        mediainfo_data = mediainfo_analysis.get_mediainfo_for_image(filepath)
+        if mediainfo_data:
+            metadata["mediainfo"] = mediainfo_data
+
         # Ensure required dimensions are present for images
         if "image" not in metadata or "width" not in metadata["image"] or "height" not in metadata["image"]:
             logger.warning(f"Missing required dimensions for image {filepath}")
@@ -174,6 +179,11 @@ def _extract_video_metadata(filepath: str) -> tuple[FileMetadata, bool]:
         if "ffprobe" in video_metadata:
             metadata["ffprobe"] = video_metadata["ffprobe"]
 
+        # Extract MediaInfo metadata (supplemental to ffprobe)
+        mediainfo_data = mediainfo_analysis.get_mediainfo_for_video(filepath)
+        if mediainfo_data:
+            metadata["mediainfo"] = mediainfo_data
+
     except Exception as e:
         logger.error(f"Failed to extract video metadata from {filepath}: {e}")
         is_corrupt = True
@@ -211,6 +221,11 @@ def _extract_audio_metadata(filepath: str) -> tuple[FileMetadata, bool]:
         # Copy ffprobe data if present
         if "ffprobe" in audio_metadata:
             metadata["ffprobe"] = audio_metadata["ffprobe"]
+
+        # Extract MediaInfo metadata (supplemental to ffprobe)
+        mediainfo_data = mediainfo_analysis.get_mediainfo_for_audio(filepath)
+        if mediainfo_data:
+            metadata["mediainfo"] = mediainfo_data
 
     except Exception as e:
         logger.error(f"Failed to extract audio metadata from {filepath}: {e}")

@@ -7,4 +7,5 @@ class FileindexAppConfig(AppConfig):
 
     def ready(self):
         # Signal indexedfile_added is available for apps to use
-        pass
+        # Import checks to register them
+        from . import checks  # noqa: F401
