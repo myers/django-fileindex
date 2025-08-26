@@ -11,6 +11,11 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+try:
+    from pymediainfo import MediaInfo
+except ImportError:
+    MediaInfo = None
+
 logger = logging.getLogger(__name__)
 
 # Global flag to track if pymediainfo is available
@@ -28,18 +33,18 @@ def is_pymediainfo_available() -> bool:
     if _pymediainfo_available is not None:
         return _pymediainfo_available
     
-    try:
-        from pymediainfo import MediaInfo
-        # Try a simple operation to verify it works
-        MediaInfo.can_parse()
-        _pymediainfo_available = True
-        logger.debug("pymediainfo is available and functional")
-    except ImportError:
+    if MediaInfo is None:
         logger.warning("pymediainfo is not installed")
         _pymediainfo_available = False
-    except Exception as e:
-        logger.warning(f"pymediainfo is installed but not functional: {e}")
-        _pymediainfo_available = False
+    else:
+        try:
+            # Try a simple operation to verify it works
+            MediaInfo.can_parse()
+            _pymediainfo_available = True
+            logger.debug("pymediainfo is available and functional")
+        except Exception as e:
+            logger.warning(f"pymediainfo is installed but not functional: {e}")
+            _pymediainfo_available = False
     
     return _pymediainfo_available
 
@@ -72,8 +77,6 @@ def extract_mediainfo_metadata(file_path: str) -> Dict[str, Any]:
         raise ValueError(f"File does not exist: {file_path}")
     
     try:
-        from pymediainfo import MediaInfo
-        
         # Parse the media file
         media_info = MediaInfo.parse(file_path)
         
@@ -111,56 +114,6 @@ def extract_mediainfo_metadata(file_path: str) -> Dict[str, Any]:
         logger.error(error_msg)
         raise ValueError(error_msg)
 
-
-def get_mediainfo_for_video(file_path: str) -> Dict[str, Any]:
-    """Extract video-specific metadata using MediaInfo.
-    
-    This function extracts metadata specifically useful for video files,
-    with special attention to DV format metadata.
-    
-    Args:
-        file_path: Path to the video file
-        
-    Returns:
-        Dictionary with MediaInfo data, empty if extraction fails
-    """
-    try:
-        return extract_mediainfo_metadata(file_path)
-    except (ImportError, ValueError) as e:
-        logger.warning(f"Could not extract MediaInfo metadata: {e}")
-        return {}
-
-
-def get_mediainfo_for_audio(file_path: str) -> Dict[str, Any]:
-    """Extract audio-specific metadata using MediaInfo.
-    
-    Args:
-        file_path: Path to the audio file
-        
-    Returns:
-        Dictionary with MediaInfo data, empty if extraction fails
-    """
-    try:
-        return extract_mediainfo_metadata(file_path)
-    except (ImportError, ValueError) as e:
-        logger.warning(f"Could not extract MediaInfo metadata: {e}")
-        return {}
-
-
-def get_mediainfo_for_image(file_path: str) -> Dict[str, Any]:
-    """Extract image-specific metadata using MediaInfo.
-    
-    Args:
-        file_path: Path to the image file
-        
-    Returns:
-        Dictionary with MediaInfo data, empty if extraction fails
-    """
-    try:
-        return extract_mediainfo_metadata(file_path)
-    except (ImportError, ValueError) as e:
-        logger.warning(f"Could not extract MediaInfo metadata: {e}")
-        return {}
 
 
 def find_dv_recording_date(mediainfo_data: Dict[str, Any]) -> Optional[str]:

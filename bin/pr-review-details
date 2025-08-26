@@ -1,0 +1,398 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "pyyaml",
+#   "requests", 
+#   "rich",
+# ]
+# ///
+
+"""
+PR Review Details Viewer
+
+Displays pull request reviews and inline comments in a unified format.
+Reads authentication from tea's config and uses the Gitea API to fetch
+comprehensive review data that tea doesn't properly display.
+
+Usage: pr-review-details <pr-number>
+"""
+
+import argparse
+import json
+import os
+import re
+import sys
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import requests
+import yaml
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.text import Text
+
+console = Console()
+
+
+class TeaConfig:
+    """Reads tea configuration from macOS location."""
+    
+    def __init__(self):
+        self.config_path = Path.home() / "Library" / "Application Support" / "tea" / "config.yml"
+        self.config = self._load_config()
+        
+    def _load_config(self) -> dict:
+        """Load tea config file."""
+        if not self.config_path.exists():
+            console.print(f"[red]Tea config not found at {self.config_path}[/red]")
+            sys.exit(1)
+            
+        with open(self.config_path) as f:
+            return yaml.safe_load(f)
+    
+    def get_default_login(self) -> dict:
+        """Get the default login configuration."""
+        logins = self.config.get("logins", [])
+        if not logins:
+            console.print("[red]No logins found in tea config[/red]")
+            sys.exit(1)
+            
+        # Find default login or use first one
+        for login in logins:
+            if login.get("default", False):
+                return login
+        return logins[0]
+
+
+class GiteaAPI:
+    """Gitea API client for fetching PR review data."""
+    
+    def __init__(self, base_url: str, token: str):
+        self.base_url = base_url.rstrip('/')
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Authorization': f'token {token}',
+            'Content-Type': 'application/json'
+        })
+    
+    def get_pr(self, owner: str, repo: str, pr_number: int) -> dict:
+        """Get pull request details."""
+        url = f"{self.base_url}/api/v1/repos/{owner}/{repo}/pulls/{pr_number}"
+        response = self.session.get(url)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:
+        """Get pull request diff."""
+        url = f"{self.base_url}/api/v1/repos/{owner}/{repo}/pulls/{pr_number}.diff"
+        response = self.session.get(url)
+        response.raise_for_status()
+        return response.text
+    
+    def get_reviews(self, owner: str, repo: str, pr_number: int) -> List[dict]:
+        """Get all reviews for a pull request."""
+        url = f"{self.base_url}/api/v1/repos/{owner}/{repo}/pulls/{pr_number}/reviews"
+        response = self.session.get(url)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_review_comments(self, owner: str, repo: str, pr_number: int, review_id: int) -> List[dict]:
+        """Get all inline comments for a specific review."""
+        url = f"{self.base_url}/api/v1/repos/{owner}/{repo}/pulls/{pr_number}/reviews/{review_id}/comments"
+        response = self.session.get(url)
+        response.raise_for_status()
+        return response.json()
+
+
+class DiffParser:
+    """Parser for unified diff format with comment insertion."""
+    
+    def __init__(self, diff_text: str):
+        self.diff_text = diff_text
+        self.files = self._parse_diff()
+    
+    def _parse_diff(self) -> List[dict]:
+        """Parse unified diff into structured format."""
+        files = []
+        current_file = None
+        
+        for line in self.diff_text.split('\n'):
+            if line.startswith('diff --git'):
+                if current_file:
+                    files.append(current_file)
+                current_file = {
+                    'header': line,
+                    'old_file': None,
+                    'new_file': None,
+                    'hunks': [],
+                    'lines': []
+                }
+            elif line.startswith('---'):
+                if current_file:
+                    current_file['old_file'] = line
+            elif line.startswith('+++'):
+                if current_file:
+                    current_file['new_file'] = line
+            elif line.startswith('@@'):
+                # Parse hunk header: @@ -old_start,old_count +new_start,new_count @@
+                match = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', line)
+                if match and current_file:
+                    old_start, old_count, new_start, new_count = match.groups()
+                    current_file['hunks'].append({
+                        'header': line,
+                        'old_start': int(old_start),
+                        'old_count': int(old_count or 1),
+                        'new_start': int(new_start),
+                        'new_count': int(new_count or 1),
+                        'lines': []
+                    })
+            elif current_file and current_file['hunks']:
+                # Regular diff line
+                current_file['hunks'][-1]['lines'].append(line)
+                current_file['lines'].append(line)
+        
+        if current_file:
+            files.append(current_file)
+        
+        return files
+
+
+class PRReviewViewer:
+    """Main class for viewing PR reviews with inline comments."""
+    
+    def __init__(self):
+        self.config = TeaConfig()
+        login = self.config.get_default_login()
+        self.api = GiteaAPI(login['url'], login['token'])
+        self.owner = None
+        self.repo = None
+    
+    def _parse_repo_from_git(self) -> Tuple[str, str]:
+        """Parse owner/repo from git remote."""
+        try:
+            import subprocess
+            result = subprocess.run(['git', 'remote', 'get-url', 'origin'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                url = result.stdout.strip()
+                # Parse various git URL formats
+                if 'git@' in url:
+                    # SSH format: git@host:owner/repo.git
+                    parts = url.split(':')[-1].replace('.git', '').split('/')
+                elif url.startswith('http'):
+                    # HTTPS format: https://host/owner/repo.git
+                    parts = url.split('/')[-2:]
+                    parts[-1] = parts[-1].replace('.git', '')
+                else:
+                    raise ValueError("Unknown URL format")
+                
+                return parts[-2], parts[-1]
+        except Exception:
+            pass
+        
+        console.print("[red]Could not determine repo from git remote. Please specify --repo owner/repo[/red]")
+        sys.exit(1)
+    
+    def display_pr_summary(self, pr: dict):
+        """Display PR summary information."""
+        title = f"#{pr['number']} {pr['title']}"
+        state_color = "green" if pr['state'] == 'open' else "red"
+        
+        summary = f"""
+**State**: [{state_color}]{pr['state']}[/{state_color}]
+**Author**: @{pr['user']['login']}
+**Created**: {pr['created_at'][:10]}
+**Base**: {pr['base']['ref']} ← **Head**: {pr['head']['ref']}
+"""
+        
+        console.print(Panel(
+            Markdown(summary),
+            title=title,
+            title_align="left"
+        ))
+        
+        if pr.get('body'):
+            console.print(Panel(
+                Markdown(pr['body']),
+                title="Description",
+                title_align="left"
+            ))
+    
+    def display_reviews(self, reviews: List[dict]):
+        """Display review summaries."""
+        if not reviews:
+            console.print("[yellow]No reviews found[/yellow]")
+            return
+        
+        for review in reviews:
+            reviewer = review.get('user', {}).get('login', 'Unknown')
+            state = review.get('state', 'COMMENTED')
+            submitted = review.get('submitted_at', '')[:10]
+            comments_count = review.get('comments_count', 0)
+            
+            state_colors = {
+                'APPROVED': 'green',
+                'REQUEST_CHANGES': 'red', 
+                'COMMENT': 'blue',
+                'COMMENTED': 'blue'
+            }
+            state_color = state_colors.get(state, 'white')
+            
+            title = f"Review by @{reviewer} - [{state_color}]{state}[/{state_color}] ({submitted})"
+            if comments_count > 0:
+                title += f" - {comments_count} inline comments"
+            
+            body_text = review.get('body', '').strip()
+            if body_text:
+                console.print(Panel(
+                    Markdown(body_text),
+                    title=title,
+                    title_align="left"
+                ))
+            else:
+                # Show review header even if no body text
+                console.print(Panel(
+                    f"[italic]Review with {comments_count} inline comments (no summary comment)[/italic]",
+                    title=title,
+                    title_align="left"
+                ))
+    
+    def display_diff_with_comments(self, diff_text: str, all_comments: List[dict]):
+        """Display diff with inline comments."""
+        if not diff_text:
+            console.print("[yellow]No diff available[/yellow]")
+            return
+        
+        # Group comments by file and line
+        comments_by_file_line = {}
+        for comment in all_comments:
+            file_path = comment.get('path', '')
+            # Try different possible line number fields
+            line_num = (comment.get('line_num') or 
+                       comment.get('new_line_num') or 
+                       comment.get('old_line_num') or
+                       comment.get('position'))
+            if file_path and line_num:
+                key = (file_path, line_num)
+                if key not in comments_by_file_line:
+                    comments_by_file_line[key] = []
+                comments_by_file_line[key].append(comment)
+        
+        parser = DiffParser(diff_text)
+        
+        for file_data in parser.files:
+            if not file_data.get('new_file'):
+                continue
+                
+            # Extract file path from +++ line
+            file_path = file_data['new_file'].replace('+++ b/', '').replace('+++ a/', '')
+            
+            console.print(f"\n[bold cyan]File: {file_path}[/bold cyan]")
+            
+            # Display diff with syntax highlighting
+            diff_content = '\n'.join([
+                file_data.get('old_file', ''),
+                file_data.get('new_file', ''),
+                *file_data['lines']
+            ])
+            
+            console.print(Syntax(diff_content, "diff", theme="monokai", line_numbers=True))
+            
+            # Show comments for this file
+            file_comments = []
+            for (comment_file, line_num), comments in comments_by_file_line.items():
+                if comment_file == file_path:
+                    file_comments.extend(comments)
+            
+            if file_comments:
+                console.print("\n[bold yellow]Comments on this file:[/bold yellow]")
+                for comment in file_comments:
+                    author = comment.get('user', {}).get('login', 'Unknown')
+                    body = comment.get('body', '')
+                    line_info = ""
+                    
+                    # Show different types of line information
+                    if comment.get('line_num'):
+                        line_info = f" (Line {comment['line_num']})"
+                    elif comment.get('new_line_num'):
+                        line_info = f" (New Line {comment['new_line_num']})"
+                    elif comment.get('old_line_num'):
+                        line_info = f" (Old Line {comment['old_line_num']})"
+                    elif comment.get('position'):
+                        line_info = f" (Position {comment['position']})"
+                    
+                    # Show diff hunk context if available
+                    diff_context = ""
+                    if comment.get('diff_hunk'):
+                        # Show first line of diff context
+                        hunk_lines = comment['diff_hunk'].split('\n')
+                        if hunk_lines:
+                            diff_context = f"\n\n**Context:** `{hunk_lines[0]}`"
+                    
+                    console.print(Panel(
+                        Markdown(body + diff_context),
+                        title=f"@{author}{line_info}",
+                        title_align="left",
+                        border_style="yellow"
+                    ))
+    
+    def view_pr_reviews(self, pr_number: int, repo_arg: Optional[str] = None):
+        """Main method to display PR reviews with inline comments."""
+        if repo_arg:
+            owner, repo = repo_arg.split('/')
+        else:
+            owner, repo = self._parse_repo_from_git()
+        
+        try:
+            console.print(f"[blue]Fetching PR #{pr_number} from {owner}/{repo}...[/blue]")
+            
+            # Fetch all data
+            pr = self.api.get_pr(owner, repo, pr_number)
+            reviews = self.api.get_reviews(owner, repo, pr_number)
+            diff = self.api.get_pr_diff(owner, repo, pr_number)
+            
+            # Collect all inline comments
+            all_comments = []
+            for review in reviews:
+                try:
+                    comments = self.api.get_review_comments(owner, repo, pr_number, review['id'])
+                    all_comments.extend(comments)
+                except requests.RequestException as e:
+                    console.print(f"[yellow]Warning: Could not fetch comments for review {review['id']}: {e}[/yellow]")
+            
+            # Display everything
+            console.print("\n" + "="*80)
+            self.display_pr_summary(pr)
+            
+            console.print("\n" + "="*80)
+            console.print("[bold]Reviews[/bold]")
+            self.display_reviews(reviews)
+            
+            console.print("\n" + "="*80)
+            console.print("[bold]Diff with Comments[/bold]")
+            self.display_diff_with_comments(diff, all_comments)
+            
+        except requests.RequestException as e:
+            console.print(f"[red]API Error: {e}[/red]")
+            sys.exit(1)
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/red]")
+            sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="View PR reviews with inline comments")
+    parser.add_argument("pr_number", type=int, help="Pull request number")
+    parser.add_argument("--repo", help="Repository in format owner/repo (auto-detected from git if not provided)")
+    
+    args = parser.parse_args()
+    
+    viewer = PRReviewViewer()
+    viewer.view_pr_reviews(args.pr_number, args.repo)
+
+
+if __name__ == "__main__":
+    main()

@@ -11,7 +11,7 @@ class TestMediaInfoAvailability:
     
     def test_is_pymediainfo_available_when_installed(self):
         """Test pymediainfo availability when library is installed and functional."""
-        with patch('pymediainfo.MediaInfo') as mock_mediainfo:
+        with patch.object(mediainfo_analysis, 'MediaInfo') as mock_mediainfo:
             mock_mediainfo.can_parse.return_value = True
             # Reset the global cache
             mediainfo_analysis._pymediainfo_available = None
@@ -23,7 +23,7 @@ class TestMediaInfoAvailability:
     
     def test_is_pymediainfo_available_when_not_installed(self):
         """Test pymediainfo availability when library is not installed."""
-        with patch('builtins.__import__', side_effect=ImportError):
+        with patch.object(mediainfo_analysis, 'MediaInfo', None):
             # Reset the global cache
             mediainfo_analysis._pymediainfo_available = None
             
@@ -33,7 +33,7 @@ class TestMediaInfoAvailability:
     
     def test_is_pymediainfo_available_when_not_functional(self):
         """Test pymediainfo availability when library is installed but not functional."""
-        with patch('pymediainfo.MediaInfo') as mock_mediainfo:
+        with patch.object(mediainfo_analysis, 'MediaInfo') as mock_mediainfo:
             mock_mediainfo.can_parse.side_effect = Exception("MediaInfo not found")
             # Reset the global cache
             mediainfo_analysis._pymediainfo_available = None
@@ -44,7 +44,7 @@ class TestMediaInfoAvailability:
     
     def test_is_pymediainfo_available_caches_result(self):
         """Test that availability check is cached."""
-        with patch('pymediainfo.MediaInfo') as mock_mediainfo:
+        with patch.object(mediainfo_analysis, 'MediaInfo') as mock_mediainfo:
             mock_mediainfo.can_parse.return_value = True
             # Reset the global cache
             mediainfo_analysis._pymediainfo_available = None
@@ -64,7 +64,7 @@ class TestMetadataExtraction:
     """Test metadata extraction functions."""
     
     @patch('fileindex.services.mediainfo_analysis.is_pymediainfo_available')
-    @patch('pymediainfo.MediaInfo')
+    @patch.object(mediainfo_analysis, 'MediaInfo')
     @patch('fileindex.services.mediainfo_analysis.Path')
     def test_extract_mediainfo_metadata_success(self, mock_path, mock_mediainfo_class, mock_available):
         """Test successful metadata extraction."""
@@ -138,32 +138,6 @@ class TestMetadataExtraction:
 class TestHelperFunctions:
     """Test helper functions for specific metadata types."""
     
-    def test_get_mediainfo_for_video_success(self):
-        """Test video metadata extraction with successful result."""
-        mock_data = {
-            "tracks": [
-                {"track_type": "General", "duration": 5000},
-                {"track_type": "Video", "width": 720, "height": 480}
-            ],
-            "version": "21.09"
-        }
-        
-        with patch('fileindex.services.mediainfo_analysis.extract_mediainfo_metadata') as mock_extract:
-            mock_extract.return_value = mock_data
-            
-            result = mediainfo_analysis.get_mediainfo_for_video("/path/to/video.mov")
-            
-            assert result == mock_data
-            mock_extract.assert_called_once_with("/path/to/video.mov")
-    
-    def test_get_mediainfo_for_video_failure(self):
-        """Test video metadata extraction with failure."""
-        with patch('fileindex.services.mediainfo_analysis.extract_mediainfo_metadata') as mock_extract:
-            mock_extract.side_effect = ValueError("Extraction failed")
-            
-            result = mediainfo_analysis.get_mediainfo_for_video("/path/to/video.mov")
-            
-            assert result == {}
     
     def test_find_dv_recording_date_found(self):
         """Test finding DV recording date when present."""

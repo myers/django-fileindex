@@ -25,11 +25,17 @@ class Command(BaseCommand):
             action="store_true",
             help="Migrate flat metadata to new structured format (video/audio/image keys)",
         )
+        parser.add_argument(
+            "--mime-type",
+            type=str,
+            help="Only process files with this MIME type (e.g., video/quicktime)",
+        )
 
     def handle(self, *args, **options):
         dry_run = options.get("dry_run", False)
         force_update = options.get("force_update", False)
         migrate_structure = options.get("migrate_structure", False)
+        mime_type = options.get("mime_type")
 
         if dry_run:
             self.stdout.write("DRY RUN MODE - No changes will be made\n")
@@ -48,8 +54,16 @@ class Command(BaseCommand):
                 | Q(mime_type__startswith="image/")
             )
         else:
-            # Find IndexedFiles without metadata
-            indexed_files = IndexedFile.objects.filter(Q(metadata={}) | Q(metadata__isnull=True))
+            # Find IndexedFiles without metadata or missing mediainfo
+            indexed_files = IndexedFile.objects.filter(
+                Q(metadata={}) | Q(metadata__isnull=True) | 
+                Q(metadata__mediainfo__isnull=True)
+            )
+
+        # Apply MIME type filter if specified
+        if mime_type:
+            indexed_files = indexed_files.filter(mime_type=mime_type)
+            self.stdout.write(f"Filtering by MIME type: {mime_type}")
 
         total_count = indexed_files.count()
         self.stdout.write(f"Found {total_count} IndexedFiles without metadata\n")

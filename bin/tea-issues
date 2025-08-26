@@ -1,0 +1,3 @@
+#!/bin/sh
+
+exec tea issues --repo myers/django-fileindex "$@"

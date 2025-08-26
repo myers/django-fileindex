@@ -116,7 +116,11 @@ def _extract_image_metadata(filepath: str, mime_type: str) -> tuple[FileMetadata
             metadata["image"] = image_info
 
         # Extract MediaInfo metadata (supplemental to PIL/ffprobe)
-        mediainfo_data = mediainfo_analysis.get_mediainfo_for_image(filepath)
+        try:
+            mediainfo_data = mediainfo_analysis.extract_mediainfo_metadata(filepath)
+        except (ImportError, ValueError) as e:
+            logger.warning(f"Could not extract MediaInfo metadata: {e}")
+            mediainfo_data = {}
         if mediainfo_data:
             metadata["mediainfo"] = mediainfo_data
 
@@ -180,7 +184,11 @@ def _extract_video_metadata(filepath: str) -> tuple[FileMetadata, bool]:
             metadata["ffprobe"] = video_metadata["ffprobe"]
 
         # Extract MediaInfo metadata (supplemental to ffprobe)
-        mediainfo_data = mediainfo_analysis.get_mediainfo_for_video(filepath)
+        try:
+            mediainfo_data = mediainfo_analysis.extract_mediainfo_metadata(filepath)
+        except (ImportError, ValueError) as e:
+            logger.warning(f"Could not extract MediaInfo metadata: {e}")
+            mediainfo_data = {}
         if mediainfo_data:
             metadata["mediainfo"] = mediainfo_data
 
@@ -223,7 +231,11 @@ def _extract_audio_metadata(filepath: str) -> tuple[FileMetadata, bool]:
             metadata["ffprobe"] = audio_metadata["ffprobe"]
 
         # Extract MediaInfo metadata (supplemental to ffprobe)
-        mediainfo_data = mediainfo_analysis.get_mediainfo_for_audio(filepath)
+        try:
+            mediainfo_data = mediainfo_analysis.extract_mediainfo_metadata(filepath)
+        except (ImportError, ValueError) as e:
+            logger.warning(f"Could not extract MediaInfo metadata: {e}")
+            mediainfo_data = {}
         if mediainfo_data:
             metadata["mediainfo"] = mediainfo_data
 

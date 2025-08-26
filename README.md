@@ -116,11 +116,11 @@ python manage.py fileindex_watch /path/to/directory --remove-after-import
 # Create AVIF versions of GIF files
 python manage.py fileindex_create_avif_for_gif
 
-# Add MediaInfo metadata to existing files (backfill)
-python manage.py fileindex_add_mediainfo --mime-type video/quicktime
-
-# Populate missing metadata for existing files
+# Populate missing metadata for existing files (includes MediaInfo)
 python manage.py fileindex_populate_missing_metadata
+
+# Populate MediaInfo for specific file types only
+python manage.py fileindex_populate_missing_metadata --mime-type video/quicktime
 
 # Run background worker for processing tasks
 python manage.py worker
@@ -320,14 +320,7 @@ Located in `fileindex.watch_service`, provides:
 
 ## Requirements
 
-- Django >= 5.2
-- Python >= 3.11
-- Pillow >= 10.0.0
-- pillow-avif-plugin >= 1.3.0
-- thumbhash >= 0.1.0
-- pymediainfo >= 6.0.0 (for enhanced metadata extraction)
-- django-pg-queue >= 0.8.0
-- django-sendfile2 >= 0.7.0
+All Python dependencies are managed in `pyproject.toml`. Install with `uv sync` or `pip install -e .`
 
 ### External Tools
 
