@@ -1,3 +1,0 @@
-#!/bin/sh
-
-exec tea pulls --repo myers/django-fileindex "$@"

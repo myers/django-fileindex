@@ -300,7 +300,7 @@ Example ffprobe metadata structure:
 ```json
 {
   "width": 720,              // from ffprobe (trusted)
-  "height": 480,             // from ffprobe (trusted) 
+  "height": 480,             // from ffprobe (trusted)
   "duration": 5000,          // from ffprobe (trusted)
   "ffprobe": {               // complete ffprobe output
     "version": "4.4.2",
@@ -365,7 +365,7 @@ All Python dependencies are managed in `pyproject.toml`. Install with `uv sync` 
 
 - **ffmpeg/ffprobe**: Required for video/audio metadata extraction
 - **MediaInfo**: Optional but recommended for professional video formats (DV, etc.)
-  - Linux: `apt install mediainfo`  
+  - Linux: `apt install mediainfo`
   - macOS: `brew install mediainfo`
   - Windows: Download from MediaArea website
 - watchdog >= 3.0.0
