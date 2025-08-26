@@ -11,19 +11,18 @@ from django.core.management.color import make_style
 from fileindex.services.media_analysis import get_ffprobe_version
 from fileindex.services.mediainfo_analysis import is_pymediainfo_available
 
-
 style = make_style("ERROR")
 
 
 @register()
 def check_ffprobe_available(app_configs, **kwargs):
     """Check if ffprobe is available and functional.
-    
+
     This check warns if ffprobe is not available, as it's used for
     video and audio metadata extraction.
     """
     errors = []
-    
+
     try:
         version = get_ffprobe_version()
         if version is None:
@@ -45,20 +44,20 @@ def check_ffprobe_available(app_configs, **kwargs):
                 id="fileindex.W002",
             )
         )
-    
+
     return errors
 
 
 @register()
 def check_mediainfo_available(app_configs, **kwargs):
     """Check if MediaInfo (pymediainfo) is available and functional.
-    
+
     This check warns if MediaInfo is not available. MediaInfo provides
     additional metadata extraction capabilities, especially useful for
     professional video formats like DV.
     """
     errors = []
-    
+
     try:
         if not is_pymediainfo_available():
             errors.append(
@@ -80,5 +79,5 @@ def check_mediainfo_available(app_configs, **kwargs):
                 id="fileindex.W004",
             )
         )
-    
+
     return errors

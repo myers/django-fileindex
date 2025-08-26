@@ -56,8 +56,7 @@ class Command(BaseCommand):
         else:
             # Find IndexedFiles without metadata or missing mediainfo
             indexed_files = IndexedFile.objects.filter(
-                Q(metadata={}) | Q(metadata__isnull=True) | 
-                Q(metadata__mediainfo__isnull=True)
+                Q(metadata={}) | Q(metadata__isnull=True) | Q(metadata__mediainfo__isnull=True)
             )
 
         # Apply MIME type filter if specified
