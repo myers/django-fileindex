@@ -225,3 +225,162 @@ class TestHelperFunctions:
         result = mediainfo_analysis.find_commercial_format(mediainfo_data)
 
         assert result is None
+
+
+class TestDateNormalization:
+    """Test ISO 8601 date normalization functions."""
+
+    def test_normalize_recorded_date_with_space_separator(self):
+        """Test normalizing date with space separator to ISO 8601 naive datetime."""
+        date_str = "2004-10-04 14:43:30.000"
+        result = mediainfo_analysis.normalize_recorded_date(date_str)
+        assert result == "2004-10-04T14:43:30.000"
+
+    def test_normalize_recorded_date_already_iso(self):
+        """Test that already ISO 8601 dates are not modified."""
+        date_str = "2004-10-04T14:43:30.000"
+        result = mediainfo_analysis.normalize_recorded_date(date_str)
+        assert result == "2004-10-04T14:43:30.000"
+
+    def test_normalize_recorded_date_empty_string(self):
+        """Test that empty strings are handled gracefully."""
+        result = mediainfo_analysis.normalize_recorded_date("")
+        assert result == ""
+
+    def test_normalize_recorded_date_none(self):
+        """Test that None values are handled gracefully."""
+        result = mediainfo_analysis.normalize_recorded_date(None)
+        assert result is None
+
+    def test_normalize_recorded_date_non_string(self):
+        """Test that non-string values are returned unchanged."""
+        result = mediainfo_analysis.normalize_recorded_date(12345)
+        assert result == 12345
+
+
+class TestFilteredMetadataExtraction:
+    """Test filtered MediaInfo metadata extraction."""
+
+    @patch("fileindex.services.mediainfo_analysis.extract_mediainfo_metadata")
+    def test_extract_filtered_mediainfo_metadata_success(self, mock_extract):
+        """Test successful filtered metadata extraction."""
+        # Mock raw MediaInfo data
+        mock_extract.return_value = {
+            "version": "21.09",
+            "tracks": [
+                {
+                    "track_type": "General",
+                    "format": "QuickTime",
+                    "commercial_name": "DVCPRO",
+                    "duration": 186587,
+                    "recorded_date": "2004-10-04 14:43:30.000",
+                    "unwanted_field": "noise",
+                    "other_duration": ["3 min", "180s"],  # Should be filtered out
+                },
+                {
+                    "track_type": "Video",
+                    "format": "DV",
+                    "commercial_name": "DVCPRO",
+                    "width": 720,
+                    "height": 480,
+                    "time_code_of_first_frame": "00:00:00;06",
+                    "scan_type": "Interlaced",
+                    "unwanted_video_field": "more noise",
+                },
+                {
+                    "track_type": "Audio",
+                    "format": "PCM",
+                    "codec_id": "twos",
+                    "channel_s": 2,
+                    "sampling_rate": 32000,
+                    "bit_depth": 16,
+                    "stream_identifier": 0,
+                    "unwanted_audio_field": "audio noise",
+                },
+                {
+                    "track_type": "Audio",
+                    "format": "PCM",
+                    "channel_s": 2,
+                    "bit_depth": 12,
+                    "muxing_mode": "DV",
+                    "track_id": "2-0",
+                },
+            ],
+        }
+
+        result = mediainfo_analysis.extract_filtered_mediainfo_metadata("/path/to/file.mov")
+
+        # Verify structure
+        assert "version" in result
+        assert "general" in result
+        assert "video" in result
+        assert "audio_streams" in result
+        assert result["version"] == "21.09"
+
+        # Verify general section (with ISO 8601 date)
+        general = result["general"]
+        assert general["format"] == "QuickTime"
+        assert general["commercial_name"] == "DVCPRO"
+        assert general["duration"] == 186587
+        assert general["recorded_date"] == "2004-10-04T14:43:30.000"  # ISO normalized (naive)
+        assert "unwanted_field" not in general
+        assert "other_duration" not in general
+
+        # Verify video section
+        video = result["video"]
+        assert video["format"] == "DV"
+        assert video["width"] == 720
+        assert video["height"] == 480
+        assert video["time_code_of_first_frame"] == "00:00:00;06"
+        assert video["scan_type"] == "Interlaced"
+        assert "unwanted_video_field" not in video
+
+        # Verify audio streams
+        audio_streams = result["audio_streams"]
+        assert len(audio_streams) == 2
+
+        # First audio stream (main)
+        audio1 = audio_streams[0]
+        assert audio1["format"] == "PCM"
+        assert audio1["codec_id"] == "twos"
+        assert audio1["channel_s"] == 2
+        assert audio1["bit_depth"] == 16
+        assert "unwanted_audio_field" not in audio1
+
+        # Second audio stream (embedded DV)
+        audio2 = audio_streams[1]
+        assert audio2["format"] == "PCM"
+        assert audio2["muxing_mode"] == "DV"
+        assert audio2["track_id"] == "2-0"
+
+    @patch("fileindex.services.mediainfo_analysis.extract_mediainfo_metadata")
+    def test_extract_filtered_mediainfo_metadata_no_tracks(self, mock_extract):
+        """Test filtered extraction when no tracks are present."""
+        mock_extract.return_value = {"version": "21.09"}
+
+        result = mediainfo_analysis.extract_filtered_mediainfo_metadata("/path/to/file.mov")
+
+        assert result == {"version": "21.09"}
+        assert "general" not in result
+        assert "video" not in result
+        assert "audio_streams" not in result
+
+    @patch("fileindex.services.mediainfo_analysis.extract_mediainfo_metadata")
+    def test_extract_filtered_mediainfo_metadata_empty_tracks(self, mock_extract):
+        """Test filtered extraction with empty track data."""
+        mock_extract.return_value = {
+            "version": "21.09",
+            "tracks": [
+                {"track_type": "General"},  # No actual data
+                {"track_type": "Video"},  # No actual data
+                {"track_type": "Audio"},  # No actual data
+            ],
+        }
+
+        result = mediainfo_analysis.extract_filtered_mediainfo_metadata("/path/to/file.mov")
+
+        assert result["version"] == "21.09"
+        # Empty sections should not be included
+        assert "general" not in result
+        assert "video" not in result
+        assert "audio_streams" not in result

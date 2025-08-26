@@ -1,7 +1,7 @@
 import datetime
 import logging
 from pathlib import Path
-from typing import NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 import pillow_avif  # noqa
 from django.conf import settings
@@ -43,19 +43,47 @@ class ImageMetadata(TypedDict):
     duration: NotRequired[int]  # Only present for animated images (in milliseconds)
 
 
+class VideoStreamInfo(TypedDict):
+    """Video stream information from ffprobe."""
+
+    codec: NotRequired[str]  # Video codec name (e.g., 'h264', 'hevc')
+    width: NotRequired[int]
+    height: NotRequired[int]
+    frame_rate: NotRequired[float]
+    bitrate: NotRequired[int]
+
+
+class AudioStreamInfo(TypedDict):
+    """Audio stream information from ffprobe."""
+
+    codec: NotRequired[str]  # Audio codec name (e.g., 'aac', 'mp3')
+    bitrate: NotRequired[int]
+    sample_rate: NotRequired[int]
+    channels: NotRequired[int]
+    tags: NotRequired[dict[str, str]]  # Title, artist, album metadata
+
+
 class VideoMetadata(TypedDict):
     """Metadata structure for video files.
 
     All fields are required for videos (enforced by database constraints):
-    - width, height: Video dimensions in pixels
+    - width, height: Video dimensions in pixels (extracted from video stream)
     - duration: Video length in milliseconds
-    - frame_rate: Frames per second
+    - frame_rate: Frames per second (extracted from video stream)
+
+    Optional nested structures:
+    - video: Video stream information including codec
+    - audio: Audio stream information including codec
+    - ffprobe: Complete ffprobe output with version info
     """
 
     width: int
     height: int
     duration: int  # in milliseconds
     frame_rate: float
+    video: NotRequired[VideoStreamInfo]  # Video stream details
+    audio: NotRequired[AudioStreamInfo]  # Audio stream details
+    ffprobe: NotRequired[dict[str, Any]]  # Complete ffprobe output
 
 
 class AudioMetadata(TypedDict):
@@ -63,9 +91,15 @@ class AudioMetadata(TypedDict):
 
     Required fields for audio (enforced by database constraints):
     - duration: Audio length in milliseconds
+
+    Optional nested structures:
+    - audio: Audio stream information including codec and tags
+    - ffprobe: Complete ffprobe output with version info
     """
 
     duration: int  # in milliseconds
+    audio: NotRequired[AudioStreamInfo]  # Audio stream details
+    ffprobe: NotRequired[dict[str, Any]]  # Complete ffprobe output
 
 
 # Union type for all possible metadata structures

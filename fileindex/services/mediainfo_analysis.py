@@ -196,3 +196,146 @@ def find_commercial_format(mediainfo_data: dict[str, Any]) -> str | None:
                 return str(format_name)
 
     return None
+
+
+# Essential field definitions for filtering MediaInfo data
+ESSENTIAL_GENERAL_FIELDS = [
+    "format",
+    "commercial_name",
+    "duration",
+    "recorded_date",
+    "frame_rate",
+    "frame_count",
+    "overall_bit_rate",
+    "overall_bit_rate_mode",
+]
+
+ESSENTIAL_VIDEO_FIELDS = [
+    "format",
+    "commercial_name",
+    "codec_id",
+    "width",
+    "height",
+    "time_code_of_first_frame",
+    "time_code_source",
+    "scan_type",
+    "scan_order",
+    "standard",
+    "encoding_settings",
+    "bit_rate",
+    "frame_rate",
+    "frame_rate_mode",
+    "delay",
+    "chroma_subsampling",
+    "bit_depth",
+]
+
+ESSENTIAL_AUDIO_FIELDS = [
+    "format",
+    "codec_id",
+    "channel_s",
+    "sampling_rate",
+    "bit_depth",
+    "bit_rate",
+    "bit_rate_mode",
+    "muxing_mode",
+    "delay",
+    "stream_identifier",
+    "track_id",
+]
+
+
+def normalize_recorded_date(date_str: str) -> str:
+    """Convert MediaInfo date format to ISO 8601 naive datetime.
+
+    Args:
+        date_str: Date string from MediaInfo (e.g., "2004-10-04 14:43:30.000")
+
+    Returns:
+        ISO 8601 formatted naive datetime string (e.g., "2004-10-04T14:43:30.000")
+
+    Note:
+        The returned datetime is naive (no timezone info) because DV cameras
+        record whatever local time is set on the camera's internal clock,
+        without any timezone awareness.
+    """
+    if not date_str or not isinstance(date_str, str):
+        return date_str
+
+    # Replace space with T for proper ISO 8601 format (but keep it naive)
+    if " " in date_str and "T" not in date_str:
+        return date_str.replace(" ", "T")
+    return date_str
+
+
+def extract_filtered_mediainfo_metadata(file_path: str) -> dict[str, Any]:
+    """Extract filtered MediaInfo metadata keeping only essential information.
+
+    Args:
+        file_path: Path to the media file
+
+    Returns:
+        Dictionary containing filtered MediaInfo metadata with structure:
+        {
+            "general": {...essential general metadata...},
+            "video": {...essential video metadata...},
+            "audio_streams": [...essential audio metadata...],
+            "version": "MediaInfo version string"
+        }
+
+    Raises:
+        ValueError: If metadata extraction fails
+        ImportError: If pymediainfo is not available
+    """
+    # Get raw MediaInfo data
+    raw_data = extract_mediainfo_metadata(file_path)
+
+    filtered_data = {"version": raw_data.get("version", "unknown")}
+
+    if "tracks" not in raw_data:
+        return filtered_data
+
+    # Process each track type
+    general_info = {}
+    video_info = {}
+    audio_streams = []
+
+    for track in raw_data["tracks"]:
+        track_type = track.get("track_type")
+
+        if track_type == "General":
+            # Extract essential general information
+            for field in ESSENTIAL_GENERAL_FIELDS:
+                if field in track:
+                    value = track[field]
+                    # Normalize recorded_date to ISO 8601 format
+                    if field == "recorded_date":
+                        value = normalize_recorded_date(value)
+                    general_info[field] = value
+
+        elif track_type == "Video":
+            # Extract essential video information
+            for field in ESSENTIAL_VIDEO_FIELDS:
+                if field in track:
+                    video_info[field] = track[field]
+
+        elif track_type == "Audio":
+            # Extract essential audio information
+            audio_info = {}
+            for field in ESSENTIAL_AUDIO_FIELDS:
+                if field in track:
+                    audio_info[field] = track[field]
+
+            # Only include audio streams that have meaningful data
+            if audio_info:
+                audio_streams.append(audio_info)
+
+    # Add sections only if they contain data
+    if general_info:
+        filtered_data["general"] = general_info
+    if video_info:
+        filtered_data["video"] = video_info
+    if audio_streams:
+        filtered_data["audio_streams"] = audio_streams
+
+    return filtered_data

@@ -115,13 +115,13 @@ def _extract_image_metadata(filepath: str, mime_type: str) -> tuple[FileMetadata
             # Store image info in structured format
             metadata["image"] = image_info
 
-        # Extract MediaInfo metadata (supplemental to PIL/ffprobe)
+        # Extract filtered MediaInfo metadata (supplemental to PIL/ffprobe)
         try:
-            mediainfo_data = mediainfo_analysis.extract_mediainfo_metadata(filepath)
+            mediainfo_data = mediainfo_analysis.extract_filtered_mediainfo_metadata(filepath)
         except (ImportError, ValueError) as e:
             logger.warning(f"Could not extract MediaInfo metadata: {e}")
             mediainfo_data = {}
-        if mediainfo_data:
+        if mediainfo_data and len(mediainfo_data) > 1:  # More than just version
             metadata["mediainfo"] = mediainfo_data
 
         # Ensure required dimensions are present for images
@@ -183,13 +183,13 @@ def _extract_video_metadata(filepath: str) -> tuple[FileMetadata, bool]:
         if "ffprobe" in video_metadata:
             metadata["ffprobe"] = video_metadata["ffprobe"]
 
-        # Extract MediaInfo metadata (supplemental to ffprobe)
+        # Extract filtered MediaInfo metadata (supplemental to ffprobe)
         try:
-            mediainfo_data = mediainfo_analysis.extract_mediainfo_metadata(filepath)
+            mediainfo_data = mediainfo_analysis.extract_filtered_mediainfo_metadata(filepath)
         except (ImportError, ValueError) as e:
             logger.warning(f"Could not extract MediaInfo metadata: {e}")
             mediainfo_data = {}
-        if mediainfo_data:
+        if mediainfo_data and len(mediainfo_data) > 1:  # More than just version
             metadata["mediainfo"] = mediainfo_data
 
     except Exception as e:
@@ -230,13 +230,13 @@ def _extract_audio_metadata(filepath: str) -> tuple[FileMetadata, bool]:
         if "ffprobe" in audio_metadata:
             metadata["ffprobe"] = audio_metadata["ffprobe"]
 
-        # Extract MediaInfo metadata (supplemental to ffprobe)
+        # Extract filtered MediaInfo metadata (supplemental to ffprobe)
         try:
-            mediainfo_data = mediainfo_analysis.extract_mediainfo_metadata(filepath)
+            mediainfo_data = mediainfo_analysis.extract_filtered_mediainfo_metadata(filepath)
         except (ImportError, ValueError) as e:
             logger.warning(f"Could not extract MediaInfo metadata: {e}")
             mediainfo_data = {}
-        if mediainfo_data:
+        if mediainfo_data and len(mediainfo_data) > 1:  # More than just version
             metadata["mediainfo"] = mediainfo_data
 
     except Exception as e:
