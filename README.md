@@ -256,6 +256,45 @@ The metadata extraction system uses multiple tools to extract comprehensive meta
 - **MediaInfo**: Enhanced metadata extraction, especially for professional formats like DV
 - **Pillow**: Image processing and thumbnail generation
 
+#### FFprobe Integration
+
+FFprobe is the primary metadata extraction tool for video, audio, and animated image files. It provides:
+
+- **Core metadata**: Duration, bitrate, frame rate, codec information
+- **Stream analysis**: Multiple video/audio streams, subtitle tracks
+- **Container details**: Format-specific metadata from MP4, MKV, AVI, etc.
+- **Animation support**: Frame data for animated GIFs, WebP, and other animated formats
+- **Trusted source**: Used as the authoritative source for width, height, duration
+
+The integration works by:
+
+1. **Automatic detection**: Applied to all files with video/* or audio/* MIME types, plus animated images
+2. **JSON output**: Full ffprobe output stored in `metadata['ffprobe']`
+3. **Key extraction**: Essential values (width, height, duration) promoted to top level
+4. **Error handling**: Graceful fallback if ffprobe fails or is unavailable
+5. **Version tracking**: Records ffprobe version for debugging
+
+Example ffprobe metadata structure:
+```json
+{
+  "ffprobe": {
+    "version": "4.4.2",
+    "streams": [
+      {
+        "codec_type": "video",
+        "width": 1920,
+        "height": 1080,
+        "avg_frame_rate": "29.97/1"
+      }
+    ],
+    "format": {
+      "duration": "120.5",
+      "bit_rate": "5000000"
+    }
+  }
+}
+```
+
 #### Metadata Structure
 
 ```json
