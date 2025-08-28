@@ -3,7 +3,7 @@ from django.db.models import Q
 from tqdm import tqdm
 
 from fileindex.models import IndexedFile
-from fileindex.services import media_analysis
+from fileindex.services import metadata
 
 
 class Command(BaseCommand):
@@ -74,100 +74,42 @@ class Command(BaseCommand):
         updated_count = 0
 
         for indexed_file in tqdm(indexed_files, desc="Processing IndexedFiles"):
-            metadata = {}
-            updated = False
-
             try:
-                # Extract metadata directly from the file based on MIME type
-                if indexed_file.mime_type and indexed_file.mime_type.startswith("image/"):
-                    # Process images with new structured format
-                    try:
-                        dimensions = media_analysis.extract_image_dimensions(indexed_file.file.path)
-                        if dimensions:
-                            width, height = dimensions
-                            if "image" not in metadata:
-                                metadata["image"] = {}
-                            metadata["image"]["width"] = width
-                            metadata["image"]["height"] = height
-                            updated = True
-                    except Exception as e:
-                        self.stdout.write(f"Failed to get dimensions for {indexed_file.sha512[:10]}: {e}")
-                        # Mark as corrupt if we can't read the file
-                        if ("Truncated" in str(e) or "cannot identify" in str(e).lower()) and not dry_run:
-                            indexed_file.corrupt = True
-                            indexed_file.save(update_fields=["corrupt"])
-                        continue
+                # Extract metadata using the unified metadata service
+                new_metadata, is_corrupt = metadata.extract_metadata(indexed_file.file.path, indexed_file.mime_type)
 
-                    # Check for animation (GIF/AVIF)
-                    if indexed_file.mime_type in ["image/gif", "image/avif"]:
-                        try:
-                            duration = media_analysis.get_duration(indexed_file.file.path, indexed_file.mime_type)
-                            if duration and duration > 0:
-                                metadata["duration"] = int(duration * 1000)  # Convert to ms
-                                if "image" not in metadata:
-                                    metadata["image"] = {}
-                                metadata["image"]["animated"] = True
-                                updated = True
-                            else:
-                                if "image" not in metadata:
-                                    metadata["image"] = {}
-                                metadata["image"]["animated"] = False
-                                updated = True
-                        except Exception as e:
-                            self.stdout.write(f"Failed to get duration for {indexed_file.sha512[:10]}: {e}")
+                # Handle corrupt files with more specific context
+                if is_corrupt:
+                    file_type = indexed_file.mime_type or "unknown"
+                    error_msg = f"Marking corrupt file: {indexed_file.sha512[:10]} ({file_type})"
+                    if indexed_file.mime_type and indexed_file.mime_type.startswith("image/"):
+                        error_msg += " - Failed to extract image dimensions or generate thumbhash"
+                    elif indexed_file.mime_type and indexed_file.mime_type.startswith("video/"):
+                        error_msg += " - Failed to extract video metadata (missing dimensions/duration/frame rate)"
+                    elif indexed_file.mime_type and indexed_file.mime_type.startswith("audio/"):
+                        error_msg += " - Failed to extract audio metadata (missing duration)"
 
-                elif indexed_file.mime_type and indexed_file.mime_type.startswith("video/"):
-                    # Process videos with new structured format
-                    try:
-                        video_metadata = media_analysis.extract_video_metadata(indexed_file.file.path)
+                    self.stdout.write(error_msg)
+                    if not dry_run:
+                        indexed_file.corrupt = True
+                        indexed_file.save(update_fields=["corrupt"])
+                    continue
 
-                        # Copy structured data
-                        if "video" in video_metadata:
-                            metadata["video"] = video_metadata["video"]
-                            updated = True
-                        if "audio" in video_metadata:
-                            metadata["audio"] = video_metadata["audio"]
-                            updated = True
-                        if "duration" in video_metadata:
-                            metadata["duration"] = video_metadata["duration"]  # Already in ms
-                            updated = True
-                        if "ffprobe" in video_metadata:
-                            metadata["ffprobe"] = video_metadata["ffprobe"]
-                            updated = True
-                    except Exception as e:
-                        self.stdout.write(f"Failed to extract video metadata for {indexed_file.sha512[:10]}: {e}")
+                # Check if we have new metadata to save
+                if new_metadata and (force_update or indexed_file.metadata != new_metadata):
+                    if not dry_run:
+                        indexed_file.metadata = new_metadata
+                        indexed_file.save(update_fields=["metadata"])
+                    updated_count += 1
 
-                elif indexed_file.mime_type and indexed_file.mime_type.startswith("audio/"):
-                    # Process audio with new structured format
-                    try:
-                        audio_metadata = media_analysis.extract_audio_metadata(indexed_file.file.path)
-
-                        # Copy structured data
-                        if "audio" in audio_metadata:
-                            metadata["audio"] = audio_metadata["audio"]
-                            updated = True
-                        if "duration" in audio_metadata:
-                            metadata["duration"] = audio_metadata["duration"]  # Already in ms
-                            updated = True
-                        if "ffprobe" in audio_metadata:
-                            metadata["ffprobe"] = audio_metadata["ffprobe"]
-                            updated = True
-                    except Exception as e:
-                        self.stdout.write(f"Failed to extract audio metadata for {indexed_file.sha512[:10]}: {e}")
+                    if dry_run:
+                        self.stdout.write(f"Would update {indexed_file.sha512[:10]} with new metadata")
 
             except Exception as e:
-                self.stdout.write(f"Error processing {indexed_file.sha512[:10]}: {e}")
+                file_type = indexed_file.mime_type or "unknown"
+                error_type = type(e).__name__
+                self.stdout.write(f"Error processing {indexed_file.sha512[:10]} ({file_type}): {error_type}: {e}")
                 continue
-
-            # Save if we updated metadata
-            if updated:
-                if not dry_run:
-                    indexed_file.metadata = metadata
-                    indexed_file.save(update_fields=["metadata"])
-                updated_count += 1
-
-                if dry_run:
-                    self.stdout.write(f"Would update {indexed_file.sha512[:10]} with: {metadata}")
 
         if dry_run:
             self.stdout.write(

@@ -3,7 +3,6 @@ import logging
 from pathlib import Path
 from typing import Any, NotRequired, TypedDict
 
-import pillow_avif  # noqa
 from django.conf import settings
 from django.db import models
 from django.dispatch import Signal
@@ -145,9 +144,9 @@ class IndexedFileManager(models.Manager):
             defaults["derived_for"] = derived_for
 
         # Extract metadata BEFORE creating the object to satisfy constraints
-        from fileindex.services.metadata_extraction import extract_required_metadata
+        from fileindex.services.metadata import extract_metadata
 
-        metadata, is_corrupt = extract_required_metadata(nfo["mime_type"], str(filepath))
+        metadata, is_corrupt = extract_metadata(str(filepath), nfo["mime_type"])
 
         # Add the extracted metadata to defaults
         if metadata:

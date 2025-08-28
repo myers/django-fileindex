@@ -127,7 +127,7 @@ def test_indexed_file_get_or_create_derived_for():
 
 
 @pytest.mark.django_db
-@patch("fileindex.services.metadata_extraction.extract_required_metadata")
+@patch("fileindex.services.metadata.extract_metadata")
 def test_indexed_file_get_or_create_with_corrupt_metadata(mock_extract):
     """Test get_or_create_from_file when metadata extraction indicates corruption."""
     # Mock metadata extraction to return corrupt flag

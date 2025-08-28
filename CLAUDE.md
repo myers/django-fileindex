@@ -160,3 +160,4 @@ PostgreSQL required for development and testing. Test configuration:
 - Port: 8732
 - Database: fileindex_test
 - User/Password: fileindex/fileindex
+- you need to always use `uv run python`.  any time you use python you will get incorrect information.

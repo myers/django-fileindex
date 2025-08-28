@@ -8,7 +8,7 @@ are available and properly configured.
 from django.core.checks import Warning, register
 from django.core.management.color import make_style
 
-from fileindex.services.media_analysis import get_ffprobe_version
+from fileindex.services.ffprobe import get_ffprobe_version
 from fileindex.services.mediainfo_analysis import is_pymediainfo_available
 
 style = make_style("ERROR")

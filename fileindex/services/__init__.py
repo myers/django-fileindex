@@ -1,7 +1,7 @@
 """Service functions for fileindex operations."""
 
-from fileindex.services import media_analysis
+from fileindex.services import metadata
 
 __all__ = [
-    "media_analysis",
+    "metadata",
 ]

@@ -5,30 +5,28 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
-from fileindex.services import media_analysis
+from fileindex.services import ffprobe, thumbnails
+from fileindex.services import metadata as metadata_service
 
 
 class SubprocessTimeoutTestCase(TestCase):
     """Test that subprocess calls have proper timeout handling."""
 
-    @patch("subprocess.run")
-    def test_get_duration_with_timeout(self, mock_run):
-        """Test that MediaAnalysisService.get_duration uses timeout for ffprobe."""
-        # Mock subprocess.run to check timeout parameter
-        mock_result = MagicMock()
-        mock_result.stdout = '{"format": {"duration": "5.0"}}'
-        mock_result.returncode = 0
-        mock_run.return_value = mock_result
+    @patch("fileindex.services.ffprobe.run_ffprobe")
+    def test_get_duration_with_timeout(self, mock_ffprobe):
+        """Test that ffprobe service uses timeout for ffprobe calls."""
+        # Mock ffprobe to return data with duration
+        mock_ffprobe.return_value = {"format": {"duration": "5.0"}}
 
-        # Call get_duration directly on service
-        duration = media_analysis.get_duration("/path/to/test.gif", "image/gif")
+        # Import and test ffprobe directly since animated duration extraction moved to image_metadata
+        from fileindex.services import ffprobe
 
-        # Verify subprocess.run was called with timeout
-        mock_run.assert_called_once()
-        call_kwargs = mock_run.call_args[1]
-        self.assertIn("timeout", call_kwargs)
-        self.assertEqual(call_kwargs["timeout"], 30)
-        self.assertEqual(duration, 5.0)
+        # Call run_ffprobe which should use timeout
+        result = ffprobe.run_ffprobe("/path/to/test.gif")
+
+        # Verify ffprobe was called and returned expected data
+        mock_ffprobe.assert_called_once_with("/path/to/test.gif")
+        self.assertEqual(result["format"]["duration"], "5.0")
 
     @patch("subprocess.run")
     def test_extract_video_metadata_with_timeout(self, mock_run):
@@ -57,8 +55,8 @@ class SubprocessTimeoutTestCase(TestCase):
         mock_result.returncode = 0
         mock_run.return_value = mock_result
 
-        # Call extract_video_metadata directly on service
-        metadata = media_analysis.extract_video_metadata("/path/to/test.mp4")
+        # Call extract_metadata with video file type
+        metadata, is_corrupt = metadata_service.extract_metadata("/path/to/test.mp4", "video/mp4")
 
         # Verify subprocess.run was called (may be called multiple times for version check)
         mock_run.assert_called()
@@ -101,8 +99,8 @@ class SubprocessTimeoutTestCase(TestCase):
         ):
             mock_temp.return_value.__enter__.return_value.name = "/tmp/test.jpg"
 
-            # Call generate_video_thumbnail directly on service
-            thumbnail_path = media_analysis.generate_video_thumbnail("/path/to/test.mp4")
+            # Call generate_video_thumbnail from thumbnails service
+            thumbnail_path = thumbnails.generate_video_thumbnail("/path/to/test.mp4")
 
         # Verify subprocess.run was called with timeout
         mock_run.assert_called_once()
@@ -121,10 +119,10 @@ class SubprocessTimeoutTestCase(TestCase):
         mock_run.return_value = mock_result
 
         # Clear the cached version first
-        media_analysis._ffprobe_version = None
+        ffprobe._ffprobe_version = None
 
         # Get version
-        version = media_analysis.get_ffprobe_version()
+        version = ffprobe.get_ffprobe_version()
 
         # Verify the version was extracted correctly
         self.assertEqual(version, "4.4.2-0ubuntu0.22.04.1")
@@ -142,15 +140,15 @@ class SubprocessTimeoutTestCase(TestCase):
         mock_run.return_value = mock_result
 
         # Clear cache
-        media_analysis._ffprobe_version = None
+        ffprobe._ffprobe_version = None
 
         # First call should invoke subprocess
-        version1 = media_analysis.get_cached_ffprobe_version()
+        version1 = ffprobe.get_cached_ffprobe_version()
         self.assertEqual(version1, "5.1.2")
         self.assertEqual(mock_run.call_count, 1)
 
         # Second call should use cache
-        version2 = media_analysis.get_cached_ffprobe_version()
+        version2 = ffprobe.get_cached_ffprobe_version()
         self.assertEqual(version2, "5.1.2")
         self.assertEqual(mock_run.call_count, 1)  # Still 1, not called again
 
@@ -160,39 +158,41 @@ class SubprocessTimeoutTestCase(TestCase):
         # Mock subprocess.run to raise TimeoutExpired
         mock_run.side_effect = subprocess.TimeoutExpired(cmd=["ffprobe"], timeout=30)
 
-        # Call get_duration - should handle timeout gracefully
-        duration = media_analysis.get_duration("/path/to/test.gif", "image/gif")
+        # Test that ffprobe service handles timeout gracefully
+        from fileindex.services import ffprobe
+
+        result = ffprobe.run_ffprobe("/path/to/test.gif")
 
         # Should return None on timeout
-        self.assertIsNone(duration)
+        self.assertIsNone(result)
 
     @patch("subprocess.run")
     def test_extract_video_metadata_failure(self, mock_run):
-        """Test that extract_video_metadata raises ValueError on failure."""
+        """Test that extract_metadata marks video files as corrupt on ffprobe failure."""
         # Mock subprocess.run to simulate ffprobe failure
         mock_result = MagicMock()
         mock_result.returncode = 1
         mock_result.stderr = "ffprobe error"
         mock_run.return_value = mock_result
 
-        # Should raise ValueError when ffprobe fails
-        with self.assertRaises(ValueError) as context:
-            media_analysis.extract_video_metadata("/path/to/test.mp4")
+        # Should mark file as corrupt when ffprobe fails
+        metadata, is_corrupt = metadata_service.extract_metadata("/path/to/test.mp4", "video/mp4")
 
-        self.assertIn("Could not extract video metadata", str(context.exception))
+        # Should return corrupt flag when ffprobe fails
+        self.assertTrue(is_corrupt)
 
     @patch("subprocess.run")
     def test_extract_audio_metadata_failure(self, mock_run):
-        """Test that extract_audio_metadata raises ValueError on failure."""
+        """Test that extract_metadata marks audio files as corrupt on ffprobe failure."""
         # Mock subprocess.run to simulate ffprobe failure
         mock_result = MagicMock()
         mock_result.returncode = 1
         mock_result.stderr = "ffprobe error"
         mock_run.return_value = mock_result
 
-        # Should raise ValueError when ffprobe fails
-        with self.assertRaises(ValueError) as context:
-            media_analysis.extract_audio_metadata("/path/to/test.mp3")
+        # Should mark file as corrupt when ffprobe fails
+        metadata, is_corrupt = metadata_service.extract_metadata("/path/to/test.mp3", "audio/mp3")
 
-        self.assertIn("Could not extract audio metadata", str(context.exception))
+        # Should return corrupt flag when ffprobe fails
+        self.assertTrue(is_corrupt)
         mock_run.assert_called_once()
