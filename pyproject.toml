@@ -17,13 +17,15 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Framework :: Django",
-    "Framework :: Django :: 5.1",
+    "Framework :: Django :: 6.0",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
-    "Django>=5.2",
+    "Django>=6.0",
     "pillow>=11.3.0",
     "thumbhash>=0.1.2",
     "watchdog>=3.0.0",
@@ -79,7 +81,7 @@ markers = []
 
 [tool.ruff]
 line-length = 120
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [
