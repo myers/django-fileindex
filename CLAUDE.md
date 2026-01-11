@@ -147,11 +147,21 @@ python manage.py fileindex_add /path/to/files --show-hash-progress
 ## Dependencies
 
 Core dependencies managed via pyproject.toml:
-- Django >= 5.2
+- Django >= 6.0
 - Pillow with AVIF support for image processing
 - thumbhash-python for image blur hashes
 - watchdog for file system monitoring
 - tqdm for progress bars
+
+## Releasing a New Version
+
+1. Update version in `fileindex/__init__.py`
+2. Commit changes: `git commit -m "Release vX.Y.Z"`
+3. Create and push tag:
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
 
 ## Database
 
