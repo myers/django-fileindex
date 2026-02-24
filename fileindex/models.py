@@ -255,6 +255,7 @@ class IndexedFile(models.Model):
         get_latest_by = "first_seen"
         indexes = [
             models.Index(fields=["derived_from", "derived_for"]),
+            models.Index(fields=["derived_from", "mime_type"]),
         ]
         constraints = [
             # Images and videos must have dimensions (unless corrupt)
