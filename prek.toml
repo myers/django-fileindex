@@ -1,0 +1,34 @@
+[[repos]]
+repo = "https://github.com/pre-commit/pre-commit-hooks"
+rev = "v3.2.0"
+
+[[repos.hooks]]
+id = "trailing-whitespace"
+
+[[repos.hooks]]
+id = "end-of-file-fixer"
+
+[[repos.hooks]]
+id = "check-yaml"
+args = ["--allow-multiple-documents"]
+
+[[repos.hooks]]
+id = "check-added-large-files"
+
+[[repos]]
+repo = "https://github.com/macisamuele/language-formatters-pre-commit-hooks"
+rev = "v2.15.0"
+hooks = [
+  { id = "pretty-format-yaml", args = ["--autofix", "--indent", "2", "--preserve-quotes", "--offset", "2"] },
+]
+
+[[repos]]
+repo = "https://github.com/astral-sh/ruff-pre-commit"
+rev = "v0.12.8"
+
+[[repos.hooks]]
+id = "ruff-format"
+
+[[repos.hooks]]
+id = "ruff-check"
+args = ["--fix"]

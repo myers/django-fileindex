@@ -1,0 +1,128 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Video Metadata Issues{% endblock %}
+
+{% block content %}
+<div style="padding: 20px;">
+    <h1>Video Metadata Issues</h1>
+
+    <div style="background: #f0f0f0; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+        <h3>Video Statistics</h3>
+        <p>
+            <strong>Total videos:</strong> {{ total_videos }}<br>
+            <strong>Videos with complete metadata:</strong> {{ videos_with_complete_metadata }}<br>
+            <strong>Videos with issues:</strong> {{ videos_with_issues }}<br>
+            <strong>Missing duration:</strong> {{ videos_missing_duration }}
+        </p>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #79aec8; color: white;">
+                <th style="padding: 10px; text-align: left;">SHA512 (first 10)</th>
+                <th style="padding: 10px; text-align: left;">MIME Type</th>
+                <th style="padding: 10px; text-align: left;">Metadata</th>
+                <th style="padding: 10px; text-align: left;">IndexedVideo</th>
+                <th style="padding: 10px; text-align: left;">PostVideo Count</th>
+                <th style="padding: 10px; text-align: left;">Original URLs</th>
+                <th style="padding: 10px; text-align: left;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for video in videos %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 10px;">
+                    <code>{{ video.sha512|slice:":10" }}...</code>
+                </td>
+                <td style="padding: 10px;">{{ video.mime_type }}</td>
+                <td style="padding: 10px;">
+                    {% if video.metadata %}
+                        {% if video.metadata.duration %}
+                            Duration: {{ video.metadata.duration }}ms<br>
+                        {% else %}
+                            <span style="color: red;">Duration: MISSING</span><br>
+                        {% endif %}
+
+                        {% if video.metadata.width and video.metadata.height %}
+                            Dimensions: {{ video.metadata.width }}x{{ video.metadata.height }}<br>
+                        {% else %}
+                            <span style="color: red;">Dimensions: MISSING</span><br>
+                        {% endif %}
+
+                        {% if video.metadata.frame_rate %}
+                            FPS: {{ video.metadata.frame_rate }}<br>
+                        {% else %}
+                            <span style="color: red;">FPS: MISSING</span><br>
+                        {% endif %}
+                    {% else %}
+                        <span style="color: red;">NO METADATA</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 10px;">
+                    {% if video.indexedvideo %}
+                        ✓ Exists<br>
+                        {% if video.indexedvideo.duration %}
+                            Duration: {{ video.indexedvideo.duration }}s<br>
+                        {% endif %}
+                        {% if video.indexedvideo.width and video.indexedvideo.height %}
+                            {{ video.indexedvideo.width }}x{{ video.indexedvideo.height }}<br>
+                        {% endif %}
+                        {% if video.indexedvideo.frame_rate %}
+                            FPS: {{ video.indexedvideo.frame_rate }}
+                        {% endif %}
+                    {% else %}
+                        <span style="color: orange;">No IndexedVideo</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 10px;">
+                    PostVideo: {{ video.postvideo_set.count }}<br>
+                    PostFile: {{ video.postfile_set.count }}
+                </td>
+                <td style="padding: 10px;">
+                    {% for pv in video.postvideo_set.all|slice:":2" %}
+                        <small>
+                            {{ pv.post.source.name }}:
+                            <a href="{{ pv.original_url }}" target="_blank">Link</a><br>
+                        </small>
+                    {% endfor %}
+                    {% if video.postvideo_set.count > 2 %}
+                        <small>... and {{ video.postvideo_set.count|add:"-2" }} more</small>
+                    {% endif %}
+                </td>
+                <td style="padding: 10px;">
+                    <a href="{% url 'fileindex:detail' video.pk %}" target="_blank">View</a> |
+                    <a href="{{ video.url }}" target="_blank">Media</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="padding: 20px; text-align: center;">
+                    No videos with metadata issues found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if is_paginated %}
+    <div style="margin-top: 20px; text-align: center;">
+        <span class="pagination">
+            {% if page_obj.has_previous %}
+                <a href="?page=1">« first</a>
+                <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+            {% endif %}
+
+            <span class="current">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}">next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}">last »</a>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+"""
+Custom Django form fields for handling file uploads with automatic IndexedFile creation.
+"""
+
+from pathlib import Path
+
+from django import forms
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
+
+class IndexedFileField(forms.FileField):
+    """
+    A form field that automatically creates IndexedFile entries from uploaded files.
+
+    Usage:
+        class MyForm(forms.Form):
+            document = IndexedFileField(
+                required=False,
+                allowed_extensions=['.pdf', '.doc', '.docx'],
+                max_file_size=10 * 1024 * 1024  # 10MB
+            )
+    """
+
+    def __init__(
+        self,
+        *args,
+        allowed_extensions: list[str] | None = None,
+        max_file_size: int | None = None,
+        path_prefix: str | None = None,
+        **kwargs,
+    ):
+        """
+        Initialize the IndexedFileField.
+
+        Args:
+            allowed_extensions: List of allowed file extensions (e.g., ['.jpg', '.png'])
+            max_file_size: Maximum file size in bytes
+            path_prefix: Prefix for the temporary file path (e.g., 'uploads/temp')
+        """
+        self.allowed_extensions = allowed_extensions
+        self.max_file_size = max_file_size
+        self.path_prefix = path_prefix or "uploads/temp"
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        """
+        Validate and process the uploaded file.
+
+        Returns:
+            IndexedFile: The created IndexedFile instance
+        """
+        file = super().clean(data, initial)
+
+        if file is None:
+            return None
+
+        # Validate file extension
+        if self.allowed_extensions:
+            ext = Path(file.name).suffix.lower()
+            if ext not in self.allowed_extensions:
+                msg = f"File type not allowed. Allowed types: {', '.join(self.allowed_extensions)}"
+                raise ValidationError(msg)
+
+        # Validate file size
+        if self.max_file_size and file.size > self.max_file_size:
+            raise ValidationError(f"File size exceeds maximum allowed size of {self.max_file_size} bytes")
+
+        # Save the file temporarily and create IndexedFile
+        file_name = default_storage.save(f"{self.path_prefix}/{file.name}", ContentFile(file.read()))
+
+        try:
+            # Get the full path to the saved file
+            file_path = default_storage.path(file_name)
+
+            # Create IndexedFile from the saved file
+            from .models import IndexedFile
+
+            indexed_file, _ = IndexedFile.objects.get_or_create_from_file(file_path)
+
+            # Delete the temporary file since IndexedFile creates its own copy
+            if default_storage.exists(file_name):
+                default_storage.delete(file_name)
+
+            return indexed_file
+
+        except Exception as e:
+            # Clean up on error
+            if default_storage.exists(file_name):
+                default_storage.delete(file_name)
+            raise ValidationError(f"Failed to process file: {str(e)}") from e

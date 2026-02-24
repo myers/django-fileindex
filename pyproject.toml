@@ -1,0 +1,97 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "django-fileindex"
+dynamic = ["version"]
+description = "A Django app for file deduplication and indexing using SHA hashes"
+readme = "README.md"
+authors = [
+    {name = "Myers Carpenter", email = "myers@maski.org"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Framework :: Django",
+    "Framework :: Django :: 6.0",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "Django>=6.0",
+    "pillow>=11.3.0",
+    "thumbhash>=0.1.2",
+    "watchdog>=3.0.0",
+    "tqdm>=4.67.1",
+]
+
+[project.optional-dependencies]
+mediainfo = ["pymediainfo>=7.0.1"]
+
+[project.urls]
+Homepage = "https://github.com/myers/django-fileindex"
+Repository = "https://github.com/myers/django-fileindex"
+Issues = "https://github.com/myers/django-fileindex/issues"
+Changelog = "https://github.com/myers/django-fileindex/releases"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "pytest-django>=4.5.0",
+    "pytest-cov>=5.0.0",
+    "coverage[toml]>=7.0.0",
+    "ruff>=0.5.0",
+    "psycopg[binary]>=3.1.0",
+    "factory-boy>=3.3.3",
+]
+
+[tool.hatch.version]
+path = "fileindex/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["fileindex"]
+
+[tool.coverage.run]
+source = ["fileindex"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+testpaths = ["tests", "fileindex"]
+addopts = "-v --tb=short --strict-markers"
+markers = []
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "UP", # pyupgrade
+]

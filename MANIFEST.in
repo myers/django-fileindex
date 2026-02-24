@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+recursive-include fileindex/templates *
+recursive-include fileindex/static *
+recursive-include fileindex/management *
+global-exclude __pycache__
+global-exclude *.py[co]

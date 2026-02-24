@@ -1,0 +1,128 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Files Without Metadata{% endblock %}
+
+{% block content %}
+<div style="padding: 20px;">
+    <h1>Files Without Metadata</h1>
+
+    <div style="background: #f0f0f0; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+        <h3>Summary Statistics</h3>
+        <p>
+            <strong>Total without metadata:</strong> {{ total_without_metadata }}<br>
+            <strong>Images:</strong> {{ images_without_metadata }}<br>
+            <strong>Videos:</strong> {{ videos_without_metadata }}<br>
+            <strong>Audio:</strong> {{ audio_without_metadata }}
+        </p>
+
+        <h3>Filter by Type</h3>
+        <p>
+            <a href="?">All</a> |
+            <a href="?mime=image">Images</a> |
+            <a href="?mime=video">Videos</a> |
+            <a href="?mime=audio">Audio</a>
+        </p>
+        {% if current_filter %}
+        <p>Currently filtering: <strong>{{ current_filter }}</strong></p>
+        {% endif %}
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #79aec8; color: white;">
+                <th style="padding: 10px; text-align: left;">SHA512 (first 10)</th>
+                <th style="padding: 10px; text-align: left;">MIME Type</th>
+                <th style="padding: 10px; text-align: left;">Size</th>
+                <th style="padding: 10px; text-align: left;">First Seen</th>
+                <th style="padding: 10px; text-align: left;">Paths</th>
+                <th style="padding: 10px; text-align: left;">Posts</th>
+                <th style="padding: 10px; text-align: left;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 10px;">
+                    <code>{{ file.sha512|slice:":10" }}...</code>
+                </td>
+                <td style="padding: 10px;">{{ file.mime_type|default:"Unknown" }}</td>
+                <td style="padding: 10px;">{{ file.size|filesizeformat }}</td>
+                <td style="padding: 10px;">{{ file.first_seen|date:"Y-m-d H:i" }}</td>
+                <td style="padding: 10px;">
+                    {% for filepath in file.filepath_set.all|slice:":3" %}
+                        <small>{{ filepath.path|truncatechars:50 }}<br></small>
+                    {% empty %}
+                        <em>No paths recorded</em>
+                    {% endfor %}
+                    {% if file.filepath_set.count > 3 %}
+                        <small>... and {{ file.filepath_set.count|add:"-3" }} more</small>
+                    {% endif %}
+                </td>
+                <td style="padding: 10px;">
+                    {% if file.postfile_set.exists %}
+                        PostFile: {{ file.postfile_set.count }}<br>
+                    {% endif %}
+                    {% if file.postimage_set.exists %}
+                        PostImage: {{ file.postimage_set.count }}<br>
+                    {% endif %}
+                    {% if file.postvideo_set.exists %}
+                        PostVideo: {{ file.postvideo_set.count }}<br>
+                    {% endif %}
+                    {% if file.postaudio_set.exists %}
+                        PostAudio: {{ file.postaudio_set.count }}<br>
+                    {% endif %}
+
+                    {% if file.postfile_set.first %}
+                        <small>
+                            Source: {{ file.postfile_set.first.post.source.name }}<br>
+                            URL: <a href="{{ file.postfile_set.first.original_url }}" target="_blank">Original</a>
+                        </small>
+                    {% elif file.postimage_set.first %}
+                        <small>
+                            Source: {{ file.postimage_set.first.post.source.name }}<br>
+                            URL: <a href="{{ file.postimage_set.first.original_url }}" target="_blank">Original</a>
+                        </small>
+                    {% elif file.postvideo_set.first %}
+                        <small>
+                            Source: {{ file.postvideo_set.first.post.source.name }}<br>
+                            URL: <a href="{{ file.postvideo_set.first.original_url }}" target="_blank">Original</a>
+                        </small>
+                    {% endif %}
+                </td>
+                <td style="padding: 10px;">
+                    <a href="{% url 'admin:fileindex_indexedfile_change' file.pk %}" target="_blank">Admin</a> |
+                    <a href="{{ file.url }}" target="_blank">Media</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="padding: 20px; text-align: center;">
+                    No files without metadata found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if is_paginated %}
+    <div style="margin-top: 20px; text-align: center;">
+        <span class="pagination">
+            {% if page_obj.has_previous %}
+                <a href="?page=1{% if current_filter %}&mime={{ current_filter }}{% endif %}">« first</a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if current_filter %}&mime={{ current_filter }}{% endif %}">previous</a>
+            {% endif %}
+
+            <span class="current">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if current_filter %}&mime={{ current_filter }}{% endif %}">next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}{% if current_filter %}&mime={{ current_filter }}{% endif %}">last »</a>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
