@@ -1,12 +1,13 @@
 """Service for extracting metadata from image files using ONLY Pillow."""
 
 import logging
+from itertools import chain
 from typing import Any, Final, Literal
 
-from PIL import Image, ImageFile
-from thumbhash import image_to_thumb_hash
+from PIL import Image, ImageFile, ImageOps
 
 from .animated_parsers import parse_avif_duration, parse_webp_duration
+from .thumbhash import rgba_to_thumb_hash
 
 # Type alias for metadata dictionary using Python 3.11 compatible syntax
 FileMetadata = dict[str, Any]
@@ -91,7 +92,7 @@ def extract_image_metadata(file_path: str, mime_type: str) -> tuple[FileMetadata
 
 
 def _generate_thumbhash(file_path: str) -> str | None:
-    """Generate thumbhash from image file path using thumbhash library.
+    """Generate thumbhash from image file path.
 
     Args:
         file_path: Path to the image file
@@ -100,16 +101,13 @@ def _generate_thumbhash(file_path: str) -> str | None:
         Hex string of thumbhash or None on error
     """
     try:
-        thumbhash_result = image_to_thumb_hash(file_path)
-        # Convert list of integers to hex string
-        if isinstance(thumbhash_result, list):
-            # Convert list of integers to bytes, then to hex string
-            return bytes(thumbhash_result).hex()
-        elif isinstance(thumbhash_result, bytes):
-            return thumbhash_result.hex()
-        else:
-            # If it's already a string, return as-is
-            return str(thumbhash_result)
+        with Image.open(file_path) as img:
+            img = img.convert("RGBA")
+            img.thumbnail(THUMBHASH_MAX_SIZE)
+            img = ImageOps.exif_transpose(img)
+            rgba = list(chain.from_iterable(img.get_flattened_data()))
+            thumb_hash = rgba_to_thumb_hash(img.width, img.height, rgba)
+            return bytes(thumb_hash).hex()
     except Exception as e:
         logger.error(f"Failed to generate thumbhash: {e}")
         return None

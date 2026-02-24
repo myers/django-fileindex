@@ -30,3 +30,14 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: gh release create "${{ github.ref_name }}" --generate-notes --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

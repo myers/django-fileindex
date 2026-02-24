@@ -26,8 +26,7 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = [
     "Django>=6.0",
-    "pillow>=11.3.0",
-    "thumbhash>=0.1.2",
+    "pillow>=12.1.0",
     "watchdog>=3.0.0",
     "tqdm>=4.67.1",
     "invoke>=2.2.1",
