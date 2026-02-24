@@ -4,14 +4,13 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('fileindex', '0005_use_bigautofield_for_ids'),
+        ("fileindex", "0005_use_bigautofield_for_ids"),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='indexedfile',
-            index=models.Index(fields=['derived_from', 'mime_type'], name='fileindex_i_derived_136784_idx'),
+            model_name="indexedfile",
+            index=models.Index(fields=["derived_from", "mime_type"], name="fileindex_i_derived_136784_idx"),
         ),
     ]
