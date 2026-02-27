@@ -83,9 +83,14 @@ class ImageFileFactory(IndexedFileFactory):
     mime_type = "image/png"
     metadata = factory.Dict(
         {
-            "width": 200,
-            "height": 150,
-            "thumbhash": factory.Faker("hexify", text="a" * 32),
+            "image": factory.Dict(
+                {
+                    "width": 200,
+                    "height": 150,
+                    "thumbhash": factory.Faker("hexify", text="a" * 32),
+                    "animated": False,
+                }
+            ),
         }
     )
 
@@ -122,10 +127,14 @@ class VideoFileFactory(IndexedFileFactory):
     mime_type = "video/mp4"
     metadata = factory.Dict(
         {
-            "width": 320,
-            "height": 240,
+            "video": factory.Dict(
+                {
+                    "width": 320,
+                    "height": 240,
+                    "frame_rate": 30.0,
+                }
+            ),
             "duration": 5000,  # 5 seconds in milliseconds
-            "frame_rate": 30.0,
         }
     )
 

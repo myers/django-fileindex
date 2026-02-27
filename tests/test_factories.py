@@ -34,19 +34,21 @@ class FactoryTestCase(TestCase):
         image_file = ImageFileFactory()
 
         self.assertEqual(image_file.mime_type, "image/png")
-        self.assertEqual(image_file.metadata["width"], 200)
-        self.assertEqual(image_file.metadata["height"], 150)
-        self.assertIn("thumbhash", image_file.metadata)
+        self.assertIn("image", image_file.metadata)
+        self.assertEqual(image_file.metadata["image"]["width"], 200)
+        self.assertEqual(image_file.metadata["image"]["height"], 150)
+        self.assertIn("thumbhash", image_file.metadata["image"])
 
     def test_video_file_factory(self):
         """Test VideoFileFactory creates proper video metadata."""
         video_file = VideoFileFactory()
 
         self.assertEqual(video_file.mime_type, "video/mp4")
-        self.assertEqual(video_file.metadata["width"], 320)
-        self.assertEqual(video_file.metadata["height"], 240)
+        self.assertIn("video", video_file.metadata)
+        self.assertEqual(video_file.metadata["video"]["width"], 320)
+        self.assertEqual(video_file.metadata["video"]["height"], 240)
         self.assertEqual(video_file.metadata["duration"], 5000)
-        self.assertEqual(video_file.metadata["frame_rate"], 30.0)
+        self.assertEqual(video_file.metadata["video"]["frame_rate"], 30.0)
 
     def test_audio_file_factory(self):
         """Test AudioFileFactory creates proper audio metadata."""

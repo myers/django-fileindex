@@ -23,22 +23,24 @@ class BaseMetadata(TypedDict):
     """
 
 
-class ImageMetadata(TypedDict):
-    """Metadata structure for image files.
-
-    Required fields for images (enforced by database constraints):
-    - width, height: Dimensions in pixels
-    - thumbhash: Compact hash for blur preview
-
-    Optional fields:
-    - animated: True if image is animated (GIF/WEBP/AVIF)
-    - duration: Animation duration in milliseconds (for animated images)
-    """
+class ImageInfo(TypedDict):
+    """Image-specific fields nested under the 'image' key."""
 
     width: int
     height: int
     thumbhash: str
-    animated: NotRequired[bool]  # Only present for animated images
+    animated: NotRequired[bool]  # True if animated (GIF/WEBP/AVIF)
+
+
+class ImageMetadata(TypedDict):
+    """Metadata structure for image files.
+
+    Fields:
+    - image: Nested image info (width, height, thumbhash, animated)
+    - duration: Animation duration in milliseconds (only for animated images)
+    """
+
+    image: ImageInfo
     duration: NotRequired[int]  # Only present for animated images (in milliseconds)
 
 
@@ -62,43 +64,51 @@ class AudioStreamInfo(TypedDict):
     tags: NotRequired[dict[str, str]]  # Title, artist, album metadata
 
 
+class MediaInfoMetadata(TypedDict):
+    """Filtered MediaInfo metadata (supplemental to ffprobe)."""
+
+    version: str
+    general: NotRequired[dict[str, Any]]
+    video: NotRequired[dict[str, Any]]
+    audio_streams: NotRequired[list[dict[str, Any]]]
+
+
 class VideoMetadata(TypedDict):
     """Metadata structure for video files.
 
-    All fields are required for videos (enforced by database constraints):
-    - width, height: Video dimensions in pixels (extracted from video stream)
+    Required fields:
     - duration: Video length in milliseconds
-    - frame_rate: Frames per second (extracted from video stream)
+    - video: Video stream info (codec, width, height, frame_rate, bitrate)
 
-    Optional nested structures:
-    - video: Video stream information including codec
+    Optional:
     - audio: Audio stream information including codec
     - ffprobe: Complete ffprobe output with version info
+    - mediainfo: Filtered MediaInfo metadata
     """
 
-    width: int
-    height: int
     duration: int  # in milliseconds
-    frame_rate: float
-    video: NotRequired[VideoStreamInfo]  # Video stream details
-    audio: NotRequired[AudioStreamInfo]  # Audio stream details
-    ffprobe: NotRequired[dict[str, Any]]  # Complete ffprobe output
+    video: VideoStreamInfo
+    audio: NotRequired[AudioStreamInfo]
+    ffprobe: NotRequired[dict[str, Any]]
+    mediainfo: NotRequired[MediaInfoMetadata]
 
 
 class AudioMetadata(TypedDict):
     """Metadata structure for audio files.
 
-    Required fields for audio (enforced by database constraints):
+    Required fields:
     - duration: Audio length in milliseconds
 
-    Optional nested structures:
+    Optional:
     - audio: Audio stream information including codec and tags
     - ffprobe: Complete ffprobe output with version info
+    - mediainfo: Filtered MediaInfo metadata
     """
 
     duration: int  # in milliseconds
-    audio: NotRequired[AudioStreamInfo]  # Audio stream details
-    ffprobe: NotRequired[dict[str, Any]]  # Complete ffprobe output
+    audio: NotRequired[AudioStreamInfo]
+    ffprobe: NotRequired[dict[str, Any]]
+    mediainfo: NotRequired[MediaInfoMetadata]
 
 
 # Union type for all possible metadata structures
