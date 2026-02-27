@@ -43,7 +43,7 @@ def rgba_to_thumb_hash(w: int, h: int, rgba: list[int]) -> list[int]:
     l_limit = 5 if has_alpha else 7
     lx = max(1, round(l_limit * w / max(w, h)))
     ly = max(1, round(l_limit * h / max(w, h)))
-    l, p, q, a = [], [], [], []
+    l, p, q, a = [], [], [], []  # noqa: E741
 
     for i in range(w * h):
         j = i * 4
