@@ -98,10 +98,7 @@ def rgba_to_thumb_hash(w: int, h: int, rgba: list[int]) -> list[int]:
         | (has_alpha << 23)
     )
     header16 = (
-        (ly if is_landscape else lx)
-        | (round(63 * p_scale) << 3)
-        | (round(63 * q_scale) << 9)
-        | (is_landscape << 15)
+        (ly if is_landscape else lx) | (round(63 * p_scale) << 3) | (round(63 * q_scale) << 9) | (is_landscape << 15)
     )
     thumb_hash = [header24 & 255, (header24 >> 8) & 255, header24 >> 16, header16 & 255, header16 >> 8]
 

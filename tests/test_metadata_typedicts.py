@@ -46,9 +46,7 @@ def create_test_image():
 def test_image_metadata_has_image_key():
     """ImageMetadata should have an 'image' key for nested image info."""
     keys = get_typed_dict_keys(ImageMetadata)
-    assert "image" in keys, (
-        f"ImageMetadata should have 'image' key for nested structure. Has: {keys}"
-    )
+    assert "image" in keys, f"ImageMetadata should have 'image' key for nested structure. Has: {keys}"
 
 
 def test_image_metadata_no_flat_width_height():
@@ -76,9 +74,7 @@ def test_image_extraction_conforms_to_typeddict(create_test_image):
     allowed_keys = get_typed_dict_keys(ImageMetadata)
     actual_keys = set(metadata.keys())
     unexpected = actual_keys - allowed_keys
-    assert not unexpected, (
-        f"Image extraction produced keys not in ImageMetadata: {unexpected}"
-    )
+    assert not unexpected, f"Image extraction produced keys not in ImageMetadata: {unexpected}"
 
 
 def test_image_extraction_image_subkeys(create_test_image):
@@ -103,9 +99,7 @@ def test_image_extraction_image_subkeys(create_test_image):
 def test_video_metadata_has_video_key():
     """VideoMetadata should have a 'video' key for nested stream info."""
     keys = get_typed_dict_keys(VideoMetadata)
-    assert "video" in keys, (
-        f"VideoMetadata should have 'video' key. Has: {keys}"
-    )
+    assert "video" in keys, f"VideoMetadata should have 'video' key. Has: {keys}"
 
 
 def test_video_metadata_no_flat_dimensions():
@@ -119,9 +113,7 @@ def test_video_metadata_no_flat_dimensions():
 def test_video_metadata_has_mediainfo():
     """VideoMetadata should include optional 'mediainfo' key."""
     keys = get_typed_dict_keys(VideoMetadata)
-    assert "mediainfo" in keys, (
-        f"VideoMetadata should have 'mediainfo' key. Has: {keys}"
-    )
+    assert "mediainfo" in keys, f"VideoMetadata should have 'mediainfo' key. Has: {keys}"
 
 
 @patch("fileindex.services.media_metadata.ffprobe.run_ffprobe")
@@ -158,9 +150,7 @@ def test_video_extraction_conforms_to_typeddict(mock_mediainfo, mock_ffprobe):
     allowed_keys = get_typed_dict_keys(VideoMetadata)
     actual_keys = set(metadata.keys())
     unexpected = actual_keys - allowed_keys
-    assert not unexpected, (
-        f"Video extraction produced keys not in VideoMetadata: {unexpected}"
-    )
+    assert not unexpected, f"Video extraction produced keys not in VideoMetadata: {unexpected}"
 
 
 # --- Audio metadata structure ---
@@ -169,9 +159,7 @@ def test_video_extraction_conforms_to_typeddict(mock_mediainfo, mock_ffprobe):
 def test_audio_metadata_has_mediainfo():
     """AudioMetadata should include optional 'mediainfo' key."""
     keys = get_typed_dict_keys(AudioMetadata)
-    assert "mediainfo" in keys, (
-        f"AudioMetadata should have 'mediainfo' key. Has: {keys}"
-    )
+    assert "mediainfo" in keys, f"AudioMetadata should have 'mediainfo' key. Has: {keys}"
 
 
 @patch("fileindex.services.media_metadata.ffprobe.run_ffprobe")
@@ -204,9 +192,7 @@ def test_audio_extraction_conforms_to_typeddict(mock_mediainfo, mock_ffprobe):
     allowed_keys = get_typed_dict_keys(AudioMetadata)
     actual_keys = set(metadata.keys())
     unexpected = actual_keys - allowed_keys
-    assert not unexpected, (
-        f"Audio extraction produced keys not in AudioMetadata: {unexpected}"
-    )
+    assert not unexpected, f"Audio extraction produced keys not in AudioMetadata: {unexpected}"
 
 
 # --- Factory metadata structure ---
@@ -220,9 +206,7 @@ def test_image_factory_metadata_matches_typeddict():
     image_file = ImageFileFactory()
     metadata = image_file.metadata
 
-    assert "image" in metadata, (
-        f"ImageFileFactory metadata should have 'image' key. Has: {set(metadata.keys())}"
-    )
+    assert "image" in metadata, f"ImageFileFactory metadata should have 'image' key. Has: {set(metadata.keys())}"
     assert "width" not in metadata, "ImageFileFactory should not have flat 'width'"
     assert "height" not in metadata, "ImageFileFactory should not have flat 'height'"
 
@@ -235,9 +219,7 @@ def test_video_factory_metadata_matches_typeddict():
     video_file = VideoFileFactory()
     metadata = video_file.metadata
 
-    assert "video" in metadata, (
-        f"VideoFileFactory metadata should have 'video' key. Has: {set(metadata.keys())}"
-    )
+    assert "video" in metadata, f"VideoFileFactory metadata should have 'video' key. Has: {set(metadata.keys())}"
     assert "width" not in metadata, "VideoFileFactory should not have flat 'width'"
     assert "height" not in metadata, "VideoFileFactory should not have flat 'height'"
     assert "frame_rate" not in metadata, "VideoFileFactory should not have flat 'frame_rate'"
