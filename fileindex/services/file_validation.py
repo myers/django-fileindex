@@ -46,8 +46,4 @@ def should_import(filepath):
     if not path.is_file():
         return False
 
-    # Check file size (reject files larger than 100MB)
-    if path.stat().st_size > 100 * 1024 * 1024:
-        return False
-
     return should_import_filename(str(path))
