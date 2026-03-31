@@ -146,19 +146,28 @@ class FilesWithoutMetadataView(ListView):
 
     def get_queryset(self):
         """Get files with empty metadata or missing required fields."""
-        # Start with files that have empty metadata
         queryset = (
             IndexedFile.objects.filter(Q(metadata={}) | Q(metadata__isnull=True))
-            .select_related("indexedimage", "indexedvideo", "indexedaudio")
             .prefetch_related(
                 Prefetch("filepath_set", queryset=FilePath.objects.order_by("-created_at")),
-                "postfile_set__post__source",
-                "postimage_set__post__source",
-                "postvideo_set__post__source",
-                "postaudio_set__post__source",
             )
             .order_by("-first_seen")
         )
+
+        # Conditionally add relations that may not exist in all installations
+        optional_select = []
+        for rel in ("indexedimage", "indexedvideo", "indexedaudio"):
+            if hasattr(IndexedFile, rel):
+                optional_select.append(rel)
+        if optional_select:
+            queryset = queryset.select_related(*optional_select)
+
+        optional_prefetch = []
+        for rel in ("postfile_set", "postimage_set", "postvideo_set", "postaudio_set"):
+            if hasattr(IndexedFile, rel):
+                optional_prefetch.append(f"{rel}__post__source")
+        if optional_prefetch:
+            queryset = queryset.prefetch_related(*optional_prefetch)
 
         # Filter by mime type if requested
         mime_filter = self.request.GET.get("mime", "")
@@ -217,7 +226,7 @@ class VideoMetadataIssuesView(ListView):
 
     def get_queryset(self):
         """Get video files with missing or incomplete metadata."""
-        return (
+        queryset = (
             IndexedFile.objects.filter(mime_type__startswith="video/")
             .filter(
                 Q(metadata__duration__isnull=True)
@@ -226,14 +235,19 @@ class VideoMetadataIssuesView(ListView):
                 | Q(metadata__frame_rate__isnull=True)
                 | Q(metadata={})
             )
-            .select_related("indexedvideo")
             .prefetch_related(
                 Prefetch("filepath_set", queryset=FilePath.objects.order_by("-created_at")),
-                "postvideo_set__post__source",
-                "postfile_set__post__source",
             )
             .order_by("-first_seen")
         )
+
+        if hasattr(IndexedFile, "indexedvideo"):
+            queryset = queryset.select_related("indexedvideo")
+        for rel in ("postvideo_set", "postfile_set"):
+            if hasattr(IndexedFile, rel):
+                queryset = queryset.prefetch_related(f"{rel}__post__source")
+
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

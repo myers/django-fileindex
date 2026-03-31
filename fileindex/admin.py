@@ -151,10 +151,10 @@ class IndexedFileAdmin(admin.ModelAdmin):
 
     def corrupt_status(self, obj):
         if obj.corrupt is True:
-            return format_html('<span class="corrupt-status corrupt-status--error">CORRUPT</span>')
+            return mark_safe('<span class="corrupt-status corrupt-status--error">CORRUPT</span>')
         elif obj.corrupt is False:
-            return format_html('<span class="corrupt-status corrupt-status--success">OK</span>')
-        return format_html('<span class="corrupt-status corrupt-status--warning">Unknown</span>')
+            return mark_safe('<span class="corrupt-status corrupt-status--success">OK</span>')
+        return mark_safe('<span class="corrupt-status corrupt-status--warning">Unknown</span>')
 
     corrupt_status.short_description = "Status"
 
