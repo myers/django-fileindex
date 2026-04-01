@@ -390,6 +390,23 @@ def test_find_importable_files_with_validation(temp_test_dir):
         assert "test0.txt" in files[0]
 
 
+@pytest.mark.django_db
+def test_import_file_with_symlink(temp_test_file):
+    """After import with symlink=True, original path becomes a symlink to managed file."""
+    with patch("fileindex.models.IndexedFile.objects.get_or_create_from_file") as mock_create:
+        mock_indexed_file = Mock()
+        mock_indexed_file.sha512 = "abcdef1234567890" * 4
+        mock_indexed_file.file.path = "/media/fileindex/ab/cd/abcdef1234567890"
+        mock_create.return_value = (mock_indexed_file, True)
+
+        with patch("fileindex.services.file_import.should_import", return_value=True):
+            indexed_file, created, error = import_file(temp_test_file, symlink=True)
+
+            assert error is None
+            assert os.path.islink(temp_test_file)
+            assert os.readlink(temp_test_file) == mock_indexed_file.file.path
+
+
 def test_find_importable_files_non_recursive(temp_test_dir):
     """Test finding files without recursion."""
     temp_dir, test_files = temp_test_dir

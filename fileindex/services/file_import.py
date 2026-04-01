@@ -21,6 +21,7 @@ def import_file(
     filepath: str,
     only_hard_link: bool = False,
     delete_after: bool = False,
+    symlink: bool = False,
     validate: bool = True,
     hash_progress_callback: Callable[[int, int], None] | None = None,
 ) -> tuple[IndexedFile | None, bool, ImportErrorType | None]:
@@ -55,6 +56,16 @@ def import_file(
         indexed_file, created = IndexedFile.objects.get_or_create_from_file(
             filepath, only_hard_link=only_hard_link, hash_progress_callback=hash_progress_callback
         )
+
+        # Replace original with symlink to managed file
+        if symlink and indexed_file and os.path.exists(filepath) and not os.path.islink(filepath):
+            try:
+                managed_path = indexed_file.file.path
+                os.unlink(filepath)
+                os.symlink(managed_path, filepath)
+                logger.info(f"Replaced original with symlink: {filepath} -> {managed_path}")
+            except OSError as e:
+                logger.warning(f"Could not create symlink for {filepath}: {e}")
 
         # Delete original if requested and import was successful
         if delete_after and indexed_file:
